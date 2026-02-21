@@ -8,7 +8,8 @@ namespace App\Models;
 
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
 
 /**
  * Class Usuario
@@ -27,8 +28,10 @@ use Illuminate\Database\Eloquent\Model;
  *
  * @package App\Models
  */
-class Usuario extends Model
+class Usuario extends Authenticatable
 {
+	use Notifiable;
+
 	protected $table = 'usuarios';
 	protected $primaryKey = 'id_usuario';
 	public $timestamps = false;
@@ -51,6 +54,21 @@ class Usuario extends Model
 		'rol',
 		'fecha_registro'
 	];
+
+	public function esAdmin(): bool
+	{
+		return $this->rol === 'admin';
+	}
+
+	public function esAlmacen(): bool
+	{
+		return $this->rol === 'almacen';
+	}
+
+	public function esCliente(): bool
+	{
+		return $this->rol === 'cliente';
+	}
 
 	public function pedidos()
 	{
