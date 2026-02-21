@@ -65,10 +65,25 @@
 
         {{-- Botón agregar al carrito (habilitado en Phase 4) --}}
         @auth
-            <a href="#" class="btn btn-success btn-lg w-100 disabled">
-                <i class="bi bi-cart-plus me-2"></i>Agregar al carrito
-                <small class="d-block" style="font-size:.7rem">(disponible próximamente)</small>
-            </a>
+            <form method="POST" action="{{ route('carrito.agregar', $producto->id_producto) }}">
+                @csrf
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Talla</label>
+                    <select name="id_talla" class="form-select" required>
+                        <option value="">Selecciona una talla</option>
+                        @foreach($tallas as $talla)
+                            <option value="{{ $talla->id_talla }}">{{ $talla->nombre }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Cantidad</label>
+                    <input type="number" name="cantidad" class="form-control" value="1" min="1" max="10">
+                </div>
+                <button type="submit" class="btn btn-success btn-lg w-100">
+                    <i class="bi bi-cart-plus me-2"></i>Agregar al carrito
+                </button>
+            </form>
         @else
             <a href="{{ route('login') }}" class="btn btn-dark btn-lg w-100">
                 <i class="bi bi-box-arrow-in-right me-2"></i>Inicia sesión para comprar

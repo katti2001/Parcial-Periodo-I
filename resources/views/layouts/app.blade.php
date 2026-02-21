@@ -33,6 +33,18 @@
                 </ul>
                 <ul class="navbar-nav ms-auto">
                     @auth
+                        {{-- Carrito --}}
+                        <li class="nav-item me-2">
+                            <a class="nav-link position-relative" href="{{ route('carrito.index') }}">
+                                <i class="bi bi-cart3"></i>
+                                @php $totalItems = collect(session('carrito', []))->sum('cantidad'); @endphp
+                                @if($totalItems > 0)
+                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                        {{ $totalItems }}
+                                    </span>
+                                @endif
+                            </a>
+                        </li>
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                                 <i class="bi bi-person-circle"></i>

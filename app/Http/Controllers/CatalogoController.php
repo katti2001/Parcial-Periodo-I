@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Categoria;
 use App\Models\Equipo;
 use App\Models\Producto;
+use App\Models\Talla;
 use Illuminate\Http\Request;
 
 class CatalogoController extends Controller
@@ -51,6 +52,8 @@ class CatalogoController extends Controller
             ->where('activo', true)
             ->findOrFail($id);
 
-        return view('catalogo.show', compact('producto'));
+        $tallas = Talla::orderBy('nombre')->get();
+
+        return view('catalogo.show', compact('producto', 'tallas'));
     }
 }
