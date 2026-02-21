@@ -5,6 +5,10 @@
 /storage/*.key
 /vendor
 .env
+*.pem
+*.key
+*.crt
+*.cer
 .env.backup
 .env.production
 .phpunit.result.cache
