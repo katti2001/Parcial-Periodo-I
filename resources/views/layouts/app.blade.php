@@ -25,6 +25,11 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ route('home') }}">Inicio</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ route('catalogo.index') }}">
+                            <i class="bi bi-grid me-1"></i>Catálogo
+                        </a>
+                    </li>
                 </ul>
                 <ul class="navbar-nav ms-auto">
                     @auth

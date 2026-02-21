@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CatalogoController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -8,6 +9,10 @@ use Illuminate\Support\Facades\Route;
 | Web Routes
 |--------------------------------------------------------------------------
 */
+
+// ─── Catálogo público ─────────────────────────────────────────────────────────
+Route::get('/catalogo',         [CatalogoController::class, 'index'])->name('catalogo.index');
+Route::get('/catalogo/{id}',    [CatalogoController::class, 'show'])->name('catalogo.show');
 
 // ─── Página de inicio ─────────────────────────────────────────────────────────
 Route::get('/', function () {
