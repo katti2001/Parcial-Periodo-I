@@ -10,12 +10,12 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * Class ImagenesProducto
- * 
+ *
  * @property int $id_imagen
  * @property int $id_producto
  * @property string $url_imagen
- * @property string|null $texto_alternativo
- * 
+ * @property bool $es_principal
+ *
  * @property Producto $producto
  *
  * @package App\Models
@@ -27,13 +27,14 @@ class ImagenesProducto extends Model
 	public $timestamps = false;
 
 	protected $casts = [
-		'id_producto' => 'int'
+		'id_producto'  => 'int',
+		'es_principal' => 'bool'
 	];
 
 	protected $fillable = [
 		'id_producto',
 		'url_imagen',
-		'texto_alternativo'
+		'es_principal'
 	];
 
 	public function producto()
