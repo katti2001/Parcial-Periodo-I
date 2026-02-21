@@ -4,6 +4,10 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CarritoController;
 use App\Http\Controllers\CatalogoController;
 use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\Admin\DashboardController as AdminDashboard;
+use App\Http\Controllers\Admin\ProductoController as AdminProducto;
+use App\Http\Controllers\Admin\PedidoController as AdminPedido;
+use App\Http\Controllers\Admin\CuponController as AdminCupon;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -53,9 +57,28 @@ Route::middleware('auth')->group(function () {
 
 // ─── Panel Admin ──────────────────────────────────────────────────────────────
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
-    Route::get('/dashboard', function () {
-        return view('dashboard.admin');
-    })->name('dashboard');
+    Route::get('/dashboard',                            [AdminDashboard::class, 'index'])->name('dashboard');
+
+    // Productos
+    Route::get('/productos',                            [AdminProducto::class, 'index'])->name('productos.index');
+    Route::get('/productos/crear',                      [AdminProducto::class, 'create'])->name('productos.create');
+    Route::post('/productos',                           [AdminProducto::class, 'store'])->name('productos.store');
+    Route::get('/productos/{id}/editar',                [AdminProducto::class, 'edit'])->name('productos.edit');
+    Route::put('/productos/{id}',                       [AdminProducto::class, 'update'])->name('productos.update');
+    Route::delete('/productos/{id}',                    [AdminProducto::class, 'destroy'])->name('productos.destroy');
+
+    // Pedidos
+    Route::get('/pedidos',                              [AdminPedido::class, 'index'])->name('pedidos.index');
+    Route::get('/pedidos/{id}',                         [AdminPedido::class, 'show'])->name('pedidos.show');
+    Route::patch('/pedidos/{id}/estado/{estado}',       [AdminPedido::class, 'actualizarEstado'])->name('pedidos.estado');
+
+    // Cupones
+    Route::get('/cupones',                              [AdminCupon::class, 'index'])->name('cupones.index');
+    Route::get('/cupones/crear',                        [AdminCupon::class, 'create'])->name('cupones.create');
+    Route::post('/cupones',                             [AdminCupon::class, 'store'])->name('cupones.store');
+    Route::get('/cupones/{id}/editar',                  [AdminCupon::class, 'edit'])->name('cupones.edit');
+    Route::put('/cupones/{id}',                         [AdminCupon::class, 'update'])->name('cupones.update');
+    Route::delete('/cupones/{id}',                      [AdminCupon::class, 'destroy'])->name('cupones.destroy');
 });
 
 // ─── Panel Almacén ────────────────────────────────────────────────────────────
