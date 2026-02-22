@@ -119,16 +119,35 @@
 
 @push('styles')
 <style>
-.panel-imagenes .img-preview-wrap {
-    position: relative; display: inline-block;
+.panel-imagenes .preview-carousel {
+    scroll-behavior: smooth;
 }
-.panel-imagenes .img-preview-wrap .btn-rm-img {
+.panel-imagenes .img-slide {
+    position: relative;
+    flex: 0 0 80px;
+    height: 80px;
+}
+.panel-imagenes .img-slide img {
+    width: 80px; height: 80px;
+    object-fit: cover;
+    border-radius: .375rem;
+    border: 2px solid transparent;
+    display: block;
+}
+.panel-imagenes .img-slide.principal img {
+    border-color: #0d6efd;
+}
+.panel-imagenes .img-slide .badge-principal {
+    position: absolute; bottom: 2px; left: 2px;
+    font-size: .6rem; padding: 1px 4px;
+    background: #0d6efd; color: #fff;
+    border-radius: 3px; line-height: 1.4;
+}
+.panel-imagenes .img-slide .btn-rm {
     position: absolute; top: 2px; right: 2px;
-    padding: 0 4px; font-size: .7rem; line-height: 1.4;
-}
-.panel-imagenes img.preview-thumb {
-    width: 72px; height: 72px; object-fit: cover;
-    border-radius: .25rem; border: 1px solid #dee2e6;
+    width: 18px; height: 18px; font-size: .65rem;
+    padding: 0; line-height: 18px; text-align: center;
+    border-radius: 50%; background: rgba(220,53,69,.85); color: #fff; border: none; cursor: pointer;
 }
 .mismo-badge {
     font-size: .7rem; background: #e9ecef; border-radius: .25rem;
@@ -234,7 +253,7 @@ function buildFila(idx, esPrimera) {
 
         <!-- Sección imágenes — solo visible en fila "líder" (no mismo-producto) -->
         <div class="panel-imagenes mt-2 border rounded p-2 bg-light">
-          <div class="d-flex align-items-center justify-content-between mb-1">
+          <div class="d-flex align-items-center justify-content-between mb-2">
             <small class="fw-semibold text-secondary"><i class="bi bi-images me-1"></i>Imágenes del producto</small>
             <label class="btn btn-xs btn-outline-secondary" style="font-size:.75rem;padding:2px 8px;cursor:pointer;">
               <i class="bi bi-upload me-1"></i>Agregar
@@ -242,10 +261,26 @@ function buildFila(idx, esPrimera) {
                      accept="image/*" multiple>
             </label>
           </div>
-          <div class="preview-grid d-flex flex-wrap gap-1"></div>
-          <small class="text-muted d-block mt-1" style="font-size:.7rem">
-            La primera imagen será la principal. Máx. 5 imágenes.
-          </small>
+
+          {{-- Carrusel de preview --}}
+          <div class="preview-carousel-wrap d-none" style="position:relative;">
+            <div class="preview-carousel d-flex gap-2 overflow-hidden" style="position:relative;height:90px;">
+              {{-- slides generados por JS --}}
+            </div>
+            <button type="button" class="btn-prev-preview btn btn-sm btn-light border"
+                    style="position:absolute;top:50%;left:-10px;transform:translateY(-50%);padding:1px 6px;font-size:.75rem;display:none;">
+              <i class="bi bi-chevron-left"></i>
+            </button>
+            <button type="button" class="btn-next-preview btn btn-sm btn-light border"
+                    style="position:absolute;top:50%;right:-10px;transform:translateY(-50%);padding:1px 6px;font-size:.75rem;display:none;">
+              <i class="bi bi-chevron-right"></i>
+            </button>
+          </div>
+
+          <div class="preview-empty text-center text-muted py-2" style="font-size:.75rem;">
+            <i class="bi bi-image me-1"></i>Sin imágenes — máx. 5
+          </div>
+          <div class="preview-counter d-none text-center text-muted mt-1" style="font-size:.7rem;"></div>
         </div>
       </div>
 
@@ -413,36 +448,78 @@ function actualizarBtnMismo(fila) {
     }
 }
 
-// ── Preview de imágenes ────────────────────────────────────────────────────────
+// ── Preview de imágenes — carrusel deslizable ─────────────────────────────────
 function bindImagenPreview(fila) {
     const inputFile = fila.querySelector('.inp-imagenes');
     if (!inputFile) return;
 
-    inputFile.addEventListener('change', function () {
-        const grid   = fila.querySelector('.preview-grid');
-        const maxImg = 5;
-        const existing = grid.querySelectorAll('.img-preview-wrap').length;
+    const MAX_IMG     = 5;
+    const wrap        = fila.querySelector('.preview-carousel-wrap');
+    const carousel    = fila.querySelector('.preview-carousel');
+    const emptyMsg    = fila.querySelector('.preview-empty');
+    const counter     = fila.querySelector('.preview-counter');
+    const btnPrev     = fila.querySelector('.btn-prev-preview');
+    const btnNext     = fila.querySelector('.btn-next-preview');
 
-        Array.from(this.files).forEach((file, i) => {
-            if (existing + i >= maxImg) return; // máx 5
+    // Almacén local de { file, dataUrl }
+    let slides = [];
+
+    function renderSlides() {
+        carousel.innerHTML = '';
+        slides.forEach((s, i) => {
+            const slide = document.createElement('div');
+            slide.className = 'img-slide' + (i === 0 ? ' principal' : '');
+            slide.innerHTML = `
+                <img src="${s.dataUrl}" alt="Imagen ${i+1}">
+                ${i === 0 ? '<span class="badge-principal">Principal</span>' : ''}
+                <button type="button" class="btn-rm" title="Quitar" data-i="${i}">×</button>`;
+            slide.querySelector('.btn-rm').addEventListener('click', () => {
+                slides.splice(i, 1);
+                renderSlides();
+            });
+            carousel.appendChild(slide);
+        });
+
+        const empty = slides.length === 0;
+        wrap.classList.toggle('d-none', empty);
+        emptyMsg.classList.toggle('d-none', !empty);
+        counter.classList.toggle('d-none', empty);
+        if (!empty) {
+            counter.textContent = `${slides.length} imagen${slides.length > 1 ? 'es' : ''} — la primera será la principal`;
+        }
+
+        // Mostrar controles solo si hay más de 2 slides (4 visibles a la vez en 80px c/u)
+        const mostrarControles = slides.length > 3;
+        btnPrev.style.display = mostrarControles ? '' : 'none';
+        btnNext.style.display = mostrarControles ? '' : 'none';
+    }
+
+    // Scroll del carrusel
+    const SCROLL_STEP = 90;
+    btnPrev.addEventListener('click', () => carousel.scrollBy({ left: -SCROLL_STEP, behavior: 'smooth' }));
+    btnNext.addEventListener('click', () => carousel.scrollBy({ left:  SCROLL_STEP, behavior: 'smooth' }));
+
+    inputFile.addEventListener('change', function () {
+        const remaining = MAX_IMG - slides.length;
+        if (remaining <= 0) { this.value = ''; return; }
+
+        const toLoad = Array.from(this.files).slice(0, remaining);
+        let loaded = 0;
+
+        toLoad.forEach(file => {
             const reader = new FileReader();
             reader.onload = e => {
-                const wrap = document.createElement('div');
-                wrap.className = 'img-preview-wrap';
-                wrap.innerHTML = `
-                    <img src="${e.target.result}" class="preview-thumb" alt="">
-                    <button type="button" class="btn btn-danger btn-rm-img">×</button>`;
-                wrap.querySelector('.btn-rm-img').addEventListener('click', () => wrap.remove());
-                grid.appendChild(wrap);
+                slides.push({ file, dataUrl: e.target.result });
+                loaded++;
+                if (loaded === toLoad.length) renderSlides();
             };
             reader.readAsDataURL(file);
         });
 
-        // Limitar el input a maxImg - existing archivos
-        if (existing >= maxImg) {
-            this.value = '';
-        }
+        this.value = ''; // reset para permitir volver a seleccionar
     });
+
+    renderSlides(); // estado inicial
 }
 
 // ── Bind de todos los eventos de una fila ────────────────────────────────────

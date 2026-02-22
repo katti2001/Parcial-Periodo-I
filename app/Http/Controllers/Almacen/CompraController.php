@@ -223,7 +223,7 @@ class CompraController extends Controller
     {
         $compra = Compra::with([
             'proveedor',
-            'detalle_compras.producto',
+            'detalle_compras.producto.imagenes_productos',
             'detalle_compras.talla',
         ])->findOrFail($id);
 
