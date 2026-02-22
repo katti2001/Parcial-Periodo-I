@@ -7,9 +7,18 @@
     .card-producto { transition: transform .2s, box-shadow .2s; }
     .card-producto:hover { transform: translateY(-4px); box-shadow: 0 .5rem 1rem rgba(0,0,0,.15); }
     .precio { font-size: 1.25rem; font-weight: 700; color: #198754; }
-    .img-producto { height: 220px; object-fit: cover; }
+    .img-producto { height: 220px; object-fit: cover; width: 100%; }
     .badge-equipo { font-size: .75rem; }
     .filtros-activos .badge { font-size: .8rem; }
+    /* Carrusel dentro de la tarjeta */
+    .card-carousel .carousel-item img { height: 220px; object-fit: cover; width: 100%; }
+    .card-carousel .carousel-control-prev,
+    .card-carousel .carousel-control-next { width: 28px; opacity: .7; }
+    .card-carousel .carousel-indicators { bottom: 4px; }
+    .card-carousel .carousel-indicators [data-bs-target] {
+        width: 7px; height: 7px; border-radius: 50%;
+    }
+    .placeholder-img { height: 220px; background: #f1f3f8; }
 </style>
 @endpush
 
@@ -101,11 +110,47 @@
         @foreach($productos as $producto)
             <div class="col">
                 <div class="card h-100 card-producto border-0 shadow-sm">
-                    @php $imagen = $producto->imagenes_productos->first(); @endphp
-                    @if($imagen)
-                        <img src="{{ $imagen->url_imagen }}" class="card-img-top img-producto" alt="{{ $producto->nombre }}">
+                    @php $imagenes = $producto->imagenes_productos; @endphp
+                    @if($imagenes->isNotEmpty())
+                        @if($imagenes->count() === 1)
+                            {{-- Una sola imagen: img estático --}}
+                            <img src="{{ $imagenes->first()->url_imagen }}"
+                                 class="card-img-top img-producto"
+                                 alt="{{ $producto->nombre }}">
+                        @else
+                            {{-- Múltiples imágenes: carrusel --}}
+                            @php $cid = 'c-' . $producto->id_producto; @endphp
+                            <div id="{{ $cid }}" class="carousel slide card-carousel"
+                                 data-bs-ride="carousel">
+                                <div class="carousel-indicators">
+                                    @foreach($imagenes as $i => $img)
+                                        <button type="button"
+                                                data-bs-target="#{{ $cid }}"
+                                                data-bs-slide-to="{{ $i }}"
+                                                class="{{ $i === 0 ? 'active' : '' }}"
+                                                aria-label="Imagen {{ $i + 1 }}"></button>
+                                    @endforeach
+                                </div>
+                                <div class="carousel-inner">
+                                    @foreach($imagenes as $i => $img)
+                                        <div class="carousel-item {{ $i === 0 ? 'active' : '' }}">
+                                            <img src="{{ $img->url_imagen }}"
+                                                 alt="{{ $producto->nombre }}">
+                                        </div>
+                                    @endforeach
+                                </div>
+                                <button class="carousel-control-prev" type="button"
+                                        data-bs-target="#{{ $cid }}" data-bs-slide="prev">
+                                    <span class="carousel-control-prev-icon"></span>
+                                </button>
+                                <button class="carousel-control-next" type="button"
+                                        data-bs-target="#{{ $cid }}" data-bs-slide="next">
+                                    <span class="carousel-control-next-icon"></span>
+                                </button>
+                            </div>
+                        @endif
                     @else
-                        <div class="card-img-top img-producto bg-light d-flex align-items-center justify-content-center text-muted">
+                        <div class="card-img-top placeholder-img d-flex align-items-center justify-content-center text-muted">
                             <i class="bi bi-image display-4"></i>
                         </div>
                     @endif

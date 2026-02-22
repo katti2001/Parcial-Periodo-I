@@ -4,11 +4,31 @@
 
 @push('styles')
 <style>
-    .img-principal { max-height: 420px; object-fit: cover; width: 100%; border-radius: .5rem; }
     .precio-grande { font-size: 2rem; font-weight: 700; color: #198754; }
-    .thumbnail { width: 70px; height: 70px; object-fit: cover; cursor: pointer;
-                 border: 2px solid transparent; border-radius: .25rem; }
-    .thumbnail:hover, .thumbnail.active { border-color: #212529; }
+    /* Galería principal */
+    #carouselProducto .carousel-item img {
+        height: 420px;
+        object-fit: cover;
+        width: 100%;
+        border-radius: .5rem;
+    }
+    /* Tira de miniaturas */
+    .thumb-strip { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .75rem; }
+    .thumb-strip .thumbnail {
+        width: 70px; height: 70px; object-fit: cover;
+        cursor: pointer; border-radius: .375rem;
+        border: 2px solid transparent;
+        transition: border-color .15s, opacity .15s;
+        opacity: .7;
+    }
+    .thumb-strip .thumbnail:hover { opacity: 1; }
+    .thumb-strip .thumbnail.active { border-color: #212529; opacity: 1; }
+    /* Placeholder sin imagen */
+    .img-placeholder {
+        height: 420px; background: #f1f3f8; border-radius: .5rem;
+        display: flex; align-items: center; justify-content: center;
+        color: #adb5bd;
+    }
 </style>
 @endpush
 
@@ -26,18 +46,41 @@
     <div class="col-md-6">
         @php $imagenes = $producto->imagenes_productos; @endphp
         @if($imagenes->isNotEmpty())
-            <img id="imgPrincipal" src="{{ $imagenes->first()->url_imagen }}"
-                 alt="{{ $producto->nombre }}" class="img-principal mb-3">
+            {{-- Carrusel principal --}}
+            <div id="carouselProducto" class="carousel slide" data-bs-ride="false">
+                <div class="carousel-inner">
+                    @foreach($imagenes as $i => $img)
+                        <div class="carousel-item {{ $i === 0 ? 'active' : '' }}">
+                            <img src="{{ $img->url_imagen }}" alt="{{ $producto->nombre }}">
+                        </div>
+                    @endforeach
+                </div>
+                @if($imagenes->count() > 1)
+                    <button class="carousel-control-prev" type="button"
+                            data-bs-target="#carouselProducto" data-bs-slide="prev">
+                        <span class="carousel-control-prev-icon"></span>
+                    </button>
+                    <button class="carousel-control-next" type="button"
+                            data-bs-target="#carouselProducto" data-bs-slide="next">
+                        <span class="carousel-control-next-icon"></span>
+                    </button>
+                @endif
+            </div>
+
+            {{-- Tira de miniaturas --}}
             @if($imagenes->count() > 1)
-                <div class="d-flex gap-2 flex-wrap">
-                    @foreach($imagenes as $img)
-                        <img src="{{ $img->url_imagen }}" class="thumbnail {{ $loop->first ? 'active' : '' }}"
-                             onclick="cambiarImagen(this)" alt="">
+                <div class="thumb-strip">
+                    @foreach($imagenes as $i => $img)
+                        <img src="{{ $img->url_imagen }}"
+                             class="thumbnail {{ $i === 0 ? 'active' : '' }}"
+                             data-bs-target="#carouselProducto"
+                             data-bs-slide-to="{{ $i }}"
+                             alt="Imagen {{ $i + 1 }}">
                     @endforeach
                 </div>
             @endif
         @else
-            <div class="img-principal bg-secondary d-flex align-items-center justify-content-center text-white mb-3">
+            <div class="img-placeholder">
                 <i class="bi bi-image display-1"></i>
             </div>
         @endif
@@ -111,12 +154,27 @@
 
 @push('scripts')
 <script>
-    function cambiarImagen(el) {
-        document.getElementById('imgPrincipal').src = el.src;
-        document.querySelectorAll('.thumbnail').forEach(t => t.classList.remove('active'));
-        el.classList.add('active');
+    // ── Miniaturas sincronizan con el carrusel Bootstrap ────────────────────────
+    const carouselEl = document.getElementById('carouselProducto');
+    if (carouselEl) {
+        const bsCarousel = bootstrap.Carousel.getOrCreateInstance(carouselEl);
+
+        // Clic en miniatura → ir al slide correspondiente
+        document.querySelectorAll('.thumb-strip .thumbnail').forEach(thumb => {
+            thumb.addEventListener('click', () => {
+                bsCarousel.to(parseInt(thumb.dataset.bsSlideTo));
+            });
+        });
+
+        // Al cambiar slide → resaltar la miniatura correspondiente
+        carouselEl.addEventListener('slid.bs.carousel', e => {
+            document.querySelectorAll('.thumb-strip .thumbnail').forEach((t, i) => {
+                t.classList.toggle('active', i === e.to);
+            });
+        });
     }
 
+    // ── Validación carrito ───────────────────────────────────────────────────────
     const MAX_CARRITO = 5;
     const selTalla     = document.getElementById('selTalla');
     const inputCantidad = document.getElementById('inputCantidad');
@@ -155,13 +213,13 @@
         }
     }
 
-    selTalla.addEventListener('change', () => {
-        inputCantidad.value = 1;
+    if (selTalla) {
+        selTalla.addEventListener('change', () => {
+            inputCantidad.value = 1;
+            validarCantidad();
+        });
+        inputCantidad.addEventListener('input', validarCantidad);
         validarCantidad();
-    });
-    inputCantidad.addEventListener('input', validarCantidad);
-
-    // Run once on load so button state is correct before a talla is selected
-    validarCantidad();
+    }
 </script>
 @endpush
