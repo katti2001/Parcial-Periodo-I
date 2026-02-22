@@ -8,6 +8,8 @@ use App\Http\Controllers\Admin\DashboardController as AdminDashboard;
 use App\Http\Controllers\Admin\ProductoController as AdminProducto;
 use App\Http\Controllers\Admin\PedidoController as AdminPedido;
 use App\Http\Controllers\Admin\CuponController as AdminCupon;
+use App\Http\Controllers\Admin\CategoriaController as AdminCategoria;
+use App\Http\Controllers\Admin\EquipoController as AdminEquipo;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -79,6 +81,22 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/cupones/{id}/editar',                  [AdminCupon::class, 'edit'])->name('cupones.edit');
     Route::put('/cupones/{id}',                         [AdminCupon::class, 'update'])->name('cupones.update');
     Route::delete('/cupones/{id}',                      [AdminCupon::class, 'destroy'])->name('cupones.destroy');
+
+    // Categorías
+    Route::get('/categorias',                           [AdminCategoria::class, 'index'])->name('categorias.index');
+    Route::get('/categorias/crear',                     [AdminCategoria::class, 'create'])->name('categorias.create');
+    Route::post('/categorias',                          [AdminCategoria::class, 'store'])->name('categorias.store');
+    Route::get('/categorias/{id}/editar',               [AdminCategoria::class, 'edit'])->name('categorias.edit');
+    Route::put('/categorias/{id}',                      [AdminCategoria::class, 'update'])->name('categorias.update');
+    Route::delete('/categorias/{id}',                   [AdminCategoria::class, 'destroy'])->name('categorias.destroy');
+
+    // Equipos
+    Route::get('/equipos',                              [AdminEquipo::class, 'index'])->name('equipos.index');
+    Route::get('/equipos/crear',                        [AdminEquipo::class, 'create'])->name('equipos.create');
+    Route::post('/equipos',                             [AdminEquipo::class, 'store'])->name('equipos.store');
+    Route::get('/equipos/{id}/editar',                  [AdminEquipo::class, 'edit'])->name('equipos.edit');
+    Route::put('/equipos/{id}',                         [AdminEquipo::class, 'update'])->name('equipos.update');
+    Route::delete('/equipos/{id}',                      [AdminEquipo::class, 'destroy'])->name('equipos.destroy');
 });
 
 // ─── Panel Almacén ────────────────────────────────────────────────────────────

@@ -33,6 +33,14 @@
                class="nav-link {{ request()->routeIs('admin.productos*') ? 'active' : '' }}">
                 <i class="bi bi-box-seam me-2"></i>Productos
             </a>
+            <a href="{{ route('admin.categorias.index') }}"
+               class="nav-link {{ request()->routeIs('admin.categorias*') ? 'active' : '' }}">
+                <i class="bi bi-tags me-2"></i>Categorías
+            </a>
+            <a href="{{ route('admin.equipos.index') }}"
+               class="nav-link {{ request()->routeIs('admin.equipos*') ? 'active' : '' }}">
+                <i class="bi bi-shield-fill me-2"></i>Equipos
+            </a>
             <a href="{{ route('admin.pedidos.index') }}"
                class="nav-link {{ request()->routeIs('admin.pedidos*') ? 'active' : '' }}">
                 <i class="bi bi-bag me-2"></i>Pedidos
