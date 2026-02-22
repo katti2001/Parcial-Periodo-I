@@ -249,11 +249,17 @@ function buildFila(idx, esPrimera) {
         </div>
       </div>
 
-      <!-- Badge "mismo producto que fila anterior" — visible cuando mismo=1 -->
+      <!-- Panel resumen "mismo producto" — visible cuando mismo=1, muestra datos del líder de solo lectura -->
       <div class="aviso-mismo d-none">
-        <span class="mismo-badge"><i class="bi bi-arrow-up me-1"></i>Mismo producto que la fila anterior</span>
-        <div class="mt-1">
-          <small class="text-muted fila-ref-nombre"></small>
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <span class="mismo-badge"><i class="bi bi-arrow-up me-1"></i>Mismo producto que la fila anterior</span>
+        </div>
+        <div class="bg-white border rounded p-2" style="font-size:.82rem;">
+          <div class="mb-1"><span class="text-muted me-1">SKU:</span><strong class="ref-sku">—</strong></div>
+          <div class="mb-1"><span class="text-muted me-1">Nombre:</span><strong class="ref-nombre">—</strong></div>
+          <div class="mb-1"><span class="text-muted me-1">Descripción:</span><span class="ref-desc text-secondary">—</span></div>
+          <div class="mb-1"><span class="text-muted me-1">Categoría:</span><span class="ref-cat text-secondary">—</span></div>
+          <div><span class="text-muted me-1">Equipo:</span><span class="ref-equipo text-secondary">—</span></div>
         </div>
       </div>
     </div>
@@ -304,21 +310,58 @@ function encontrarLider(fila) {
     return lider;
 }
 
+// ── Helpers para leer texto visible de un <select> dado su value ─────────────
+function textoDeSelect(selectEl, valor) {
+    const opt = Array.from(selectEl.options).find(o => o.value === String(valor));
+    return opt ? opt.textContent.trim() : '—';
+}
+
 // ── Activar modo "mismo producto" en una fila ─────────────────────────────────
 function activarMismo(fila) {
     fila.querySelector('.inp-mismo-producto').value = '1';
     fila.querySelector('.campos-nuevo-producto').classList.add('d-none');
     fila.querySelector('.aviso-mismo').classList.remove('d-none');
 
-    // Mostrar nombre del producto líder como referencia
-    const lider = encontrarLider(fila);
-    const nombreLider = lider !== fila ? lider.querySelector('.inp-nombre').value.trim() : '';
-    const refEl = fila.querySelector('.fila-ref-nombre');
-    if (refEl) refEl.textContent = nombreLider ? `"${nombreLider}"` : '(sin nombre aún)';
-
     // Ocultar input de imágenes (solo existe en el líder)
     const panelImg = fila.querySelector('.panel-imagenes');
     if (panelImg) panelImg.classList.add('d-none');
+
+    // ── Copiar datos del líder a los hidden inputs de esta fila ──────────────
+    const lider = encontrarLider(fila);
+    if (lider && lider !== fila) {
+        // Mapa: nombre del campo en el name="" → clase CSS del input en la fila líder
+        const campoClase = {
+            'sku_base':    'inp-sku',
+            'nombre':      'inp-nombre',
+            'descripcion': 'inp-desc',
+            'id_categoria':'inp-cat',
+            'id_equipo':   'inp-equipo',
+        };
+        Object.entries(campoClase).forEach(([campo, clase]) => {
+            const origen  = lider.querySelector('.' + clase);
+            const destino = fila.querySelector(`[name*="[${campo}]"]`);
+            if (origen && destino) destino.value = origen.value;
+        });
+
+        // ── Poblar el panel de resumen visual ────────────────────────────────
+        const aviso = fila.querySelector('.aviso-mismo');
+
+        aviso.querySelector('.ref-sku').textContent    = lider.querySelector('.inp-sku')?.value.trim()  || '—';
+        aviso.querySelector('.ref-nombre').textContent = lider.querySelector('.inp-nombre')?.value.trim() || '—';
+        aviso.querySelector('.ref-desc').textContent   = lider.querySelector('.inp-desc')?.value.trim()  || '(sin descripción)';
+
+        const selCat    = lider.querySelector('.inp-cat');
+        const selEquipo = lider.querySelector('.inp-equipo');
+        aviso.querySelector('.ref-cat').textContent    = selCat    ? textoDeSelect(selCat,    selCat.value)    : '—';
+        aviso.querySelector('.ref-equipo').textContent = selEquipo ? textoDeSelect(selEquipo, selEquipo.value) : '—';
+
+        // ── También copiar costo unitario del líder como punto de partida ────
+        const costoLider = lider.querySelector('.inp-costo')?.value;
+        if (costoLider !== undefined) {
+            fila.querySelector('.inp-costo').value = costoLider;
+            recalcularTotales();
+        }
+    }
 
     actualizarBtnMismo(fila);
 }
@@ -331,6 +374,25 @@ function desactivarMismo(fila) {
 
     const panelImg = fila.querySelector('.panel-imagenes');
     if (panelImg) panelImg.classList.remove('d-none');
+
+    // Limpiar resumen visual
+    const aviso = fila.querySelector('.aviso-mismo');
+    if (aviso) {
+        ['ref-sku','ref-nombre','ref-desc','ref-cat','ref-equipo'].forEach(cls => {
+            const el = aviso.querySelector('.' + cls);
+            if (el) el.textContent = '—';
+        });
+    }
+
+    // Limpiar los campos del producto nuevo de esta fila para que el usuario los rellene
+    ['inp-sku','inp-nombre','inp-desc'].forEach(cls => {
+        const el = fila.querySelector('.' + cls);
+        if (el) el.value = '';
+    });
+    const selCat    = fila.querySelector('.inp-cat');
+    const selEquipo = fila.querySelector('.inp-equipo');
+    if (selCat)    selCat.value    = '';
+    if (selEquipo) selEquipo.value = '';
 
     actualizarBtnMismo(fila);
 }
