@@ -98,10 +98,7 @@
             <span class="badge bg-dark mb-1"><i class="bi bi-shield me-1"></i>{{ $producto->equipo->nombre }}</span>
         @endif
 
-        <p class="precio-grande mt-3" id="precioMostrado">${{ number_format($precioMostrar, 2) }}</p>
-        <small class="text-muted d-block mt-n2 mb-2" id="notaPrecio" style="font-size:.8rem;">
-            Selecciona una talla para ver el precio exacto
-        </small>
+        <p class="precio-grande mt-3">${{ number_format($producto->precio_venta_base, 2) }}</p>
 
         @if($producto->descripcion)
             <p class="text-muted">{{ $producto->descripcion }}</p>
@@ -118,13 +115,9 @@
                     <select name="id_talla" id="selTalla" class="form-select" required>
                         <option value="">Selecciona una talla</option>
                         @foreach($tallas as $talla)
-                            @php
-                                $stock  = $stockPorTalla[$talla->id_talla] ?? 0;
-                                $precio = $precioPorTalla[$talla->id_talla] ?? $precioMostrar;
-                            @endphp
+                            @php $stock = $stockPorTalla[$talla->id_talla] ?? 0; @endphp
                             <option value="{{ $talla->id_talla }}"
                                     data-stock="{{ $stock }}"
-                                    data-precio="{{ $precio }}"
                                     {{ $stock <= 0 ? 'disabled' : '' }}>
                                 {{ $talla->nombre }}
                                 @if($stock > 0)
@@ -182,28 +175,11 @@
     }
 
     // ── Validación carrito ───────────────────────────────────────────────────────
-    const MAX_CARRITO   = 5;
-    const selTalla      = document.getElementById('selTalla');
+    const MAX_CARRITO = 5;
+    const selTalla     = document.getElementById('selTalla');
     const inputCantidad = document.getElementById('inputCantidad');
-    const msgCantidad   = document.getElementById('msgCantidad');
-    const btnAgregar    = document.getElementById('btnAgregar');
-    const precioMostrado = document.getElementById('precioMostrado');
-    const notaPrecio     = document.getElementById('notaPrecio');
-
-    const precioBase = {{ $precioMostrar }};
-
-    function actualizarPrecio() {
-        if (!selTalla) return;
-        const opt = selTalla.options[selTalla.selectedIndex];
-        if (opt && opt.value) {
-            const precio = parseFloat(opt.dataset.precio) || precioBase;
-            precioMostrado.textContent = '$' + precio.toFixed(2);
-            notaPrecio.textContent = 'Precio para la talla seleccionada';
-        } else {
-            precioMostrado.textContent = '$' + precioBase.toFixed(2);
-            notaPrecio.textContent = 'Selecciona una talla para ver el precio exacto';
-        }
-    }
+    const msgCantidad  = document.getElementById('msgCantidad');
+    const btnAgregar   = document.getElementById('btnAgregar');
 
     function validarCantidad() {
         const opt   = selTalla.options[selTalla.selectedIndex];
@@ -240,11 +216,9 @@
     if (selTalla) {
         selTalla.addEventListener('change', () => {
             inputCantidad.value = 1;
-            actualizarPrecio();
             validarCantidad();
         });
         inputCantidad.addEventListener('input', validarCantidad);
-        actualizarPrecio();
         validarCantidad();
     }
 </script>

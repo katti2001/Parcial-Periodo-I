@@ -17,7 +17,6 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $cantidad_comprada
  * @property int $cantidad_restante
  * @property float $costo_unitario
- * @property float $precio_venta
  *
  * @property Compra $compra
  * @property Producto $producto
@@ -37,8 +36,7 @@ class DetalleCompra extends Model
         'id_talla'           => 'int',
         'cantidad_comprada'  => 'int',
         'cantidad_restante'  => 'int',
-        'costo_unitario'     => 'float',
-        'precio_venta'       => 'float',
+        'costo_unitario'     => 'float'
     ];
 
     protected $fillable = [
@@ -47,8 +45,7 @@ class DetalleCompra extends Model
         'id_talla',
         'cantidad_comprada',
         'cantidad_restante',
-        'costo_unitario',
-        'precio_venta',
+        'costo_unitario'
     ];
 
     public function compra()
