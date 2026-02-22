@@ -90,8 +90,29 @@ class CatalogoController extends Controller
             ->groupBy('id_talla')
             ->pluck('total', 'id_talla');
 
-        // Para el carrito usamos el id_producto del representante ($producto),
-        // pero pasamos también los ids del grupo por si el checkout necesita FIFO entre ellos
-        return view('catalogo.show', compact('producto', 'tallas', 'stockPorTalla'));
+        // Precio de venta vigente por talla: lote más antiguo con stock (FIFO)
+        // Toma el precio_venta del primer detalle_compra con cantidad_restante > 0
+        // ordenado por id_detalle_compra ASC (el más antiguo primero).
+        $precioPorTalla = [];
+        foreach ($tallas as $talla) {
+            $loteVigente = DetalleCompra::whereIn('id_producto', $idsGrupo)
+                ->where('id_talla', $talla->id_talla)
+                ->where('cantidad_restante', '>', 0)
+                ->orderBy('id_detalle_compra', 'asc')
+                ->select('precio_venta')
+                ->first();
+
+            if ($loteVigente && $loteVigente->precio_venta > 0) {
+                $precioPorTalla[$talla->id_talla] = (float) $loteVigente->precio_venta;
+            }
+        }
+
+        // Precio base a mostrar: el del lote vigente más antiguo entre todas las tallas,
+        // o bien el precio_venta_base del producto si no hay lotes aún.
+        $precioMostrar = collect($precioPorTalla)->min() ?? $producto->precio_venta_base;
+
+        return view('catalogo.show', compact(
+            'producto', 'tallas', 'stockPorTalla', 'precioPorTalla', 'precioMostrar'
+        ));
     }
 }

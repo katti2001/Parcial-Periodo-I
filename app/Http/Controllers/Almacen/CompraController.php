@@ -120,8 +120,10 @@ class CompraController extends Controller
 
             // Pre-procesar ítems: resolver o crear productos
             // $ultimoIdNuevo guarda el último id_producto creado para resolver filas "mismo_producto"
-            $ultimoIdNuevo = null;
-            $itemsResueltos = [];
+            // $ultimoPrecioNuevo guarda el precio_venta del último producto nuevo para filas "mismo"
+            $ultimoIdNuevo    = null;
+            $ultimoPrecioNuevo = null;
+            $itemsResueltos   = [];
 
             foreach ($request->items as $idx => $item) {
                 $cantidad = (int)   $item['cantidad_comprada'];
@@ -149,8 +151,9 @@ class CompraController extends Controller
                         'activo'            => true,
                     ]);
 
-                    $idProducto    = $producto->id_producto;
-                    $ultimoIdNuevo = $idProducto;
+                    $idProducto        = $producto->id_producto;
+                    $ultimoIdNuevo     = $idProducto;
+                    $ultimoPrecioNuevo = $precioVenta;
 
                     // Asociar imágenes subidas para este índice
                     if (!empty($imagenesSubidas[$idx])) {
@@ -168,12 +171,20 @@ class CompraController extends Controller
                     if ($ultimoIdNuevo === null) {
                         abort(422, 'No hay producto nuevo anterior para la fila "mismo producto".');
                     }
-                    $idProducto = $ultimoIdNuevo;
+                    $idProducto  = $ultimoIdNuevo;
+                    $precioVenta = $ultimoPrecioNuevo;
 
                 } else {
-                    // Producto existente
-                    $idProducto    = (int) $item['id_producto'];
-                    $ultimoIdNuevo = null; // romper la cadena de "mismo producto"
+                    // Producto existente: calcular nuevo precio de venta con el margen ingresado
+                    $idProducto  = (int) $item['id_producto'];
+                    $precioVenta = round($costo * (1 + $margen / 100), 2);
+
+                    // Actualizar precio_venta_base del producto para reflejar el lote más reciente
+                    Producto::where('id_producto', $idProducto)
+                        ->update(['precio_venta_base' => $precioVenta]);
+
+                    $ultimoIdNuevo     = null; // romper la cadena de "mismo producto"
+                    $ultimoPrecioNuevo = null;
                 }
 
                 $itemsResueltos[] = [
@@ -181,6 +192,7 @@ class CompraController extends Controller
                     'id_talla'          => $item['id_talla'],
                     'cantidad_comprada' => $cantidad,
                     'costo_unitario'    => $costo,
+                    'precio_venta'      => $precioVenta,
                 ];
             }
 
@@ -200,6 +212,7 @@ class CompraController extends Controller
                     'cantidad_comprada' => $item['cantidad_comprada'],
                     'cantidad_restante' => $item['cantidad_comprada'],
                     'costo_unitario'    => $item['costo_unitario'],
+                    'precio_venta'      => $item['precio_venta'],
                 ]);
 
                 if ($request->estado === 'recibido') {

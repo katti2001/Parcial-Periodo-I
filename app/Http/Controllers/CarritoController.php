@@ -12,12 +12,43 @@ class CarritoController extends Controller
     /**
      * Calcula el stock disponible de un producto en una talla específica.
      * Stock = suma de cantidad_restante en detalle_compras.
+     * Busca también en todos los productos con el mismo nombre (grupo de variantes).
      */
     private function stockDisponible(int $idProducto, int $idTalla): int
     {
-        return (int) DetalleCompra::where('id_producto', $idProducto)
+        // Obtener todos los ids del grupo (mismo nombre)
+        $nombre = Producto::where('id_producto', $idProducto)->value('nombre');
+        $idsGrupo = Producto::where('nombre', $nombre)->where('activo', true)->pluck('id_producto');
+
+        return (int) DetalleCompra::whereIn('id_producto', $idsGrupo)
             ->where('id_talla', $idTalla)
             ->sum('cantidad_restante');
+    }
+
+    /**
+     * Obtiene el precio de venta vigente (FIFO) para un producto+talla.
+     * Devuelve el precio_venta del lote más antiguo con stock restante.
+     * Si no hay lotes con precio_venta guardado, usa precio_venta_base del producto.
+     */
+    private function precioVigente(int $idProducto, int $idTalla): float
+    {
+        $nombre = Producto::where('id_producto', $idProducto)->value('nombre');
+        $idsGrupo = Producto::where('nombre', $nombre)->where('activo', true)->pluck('id_producto');
+
+        $lote = DetalleCompra::whereIn('id_producto', $idsGrupo)
+            ->where('id_talla', $idTalla)
+            ->where('cantidad_restante', '>', 0)
+            ->where('precio_venta', '>', 0)
+            ->orderBy('id_detalle_compra', 'asc')
+            ->select('precio_venta')
+            ->first();
+
+        if ($lote) {
+            return (float) $lote->precio_venta;
+        }
+
+        // Fallback: precio_venta_base del producto
+        return (float) Producto::where('id_producto', $idProducto)->value('precio_venta_base');
     }
 
     /**
@@ -66,12 +97,14 @@ class CarritoController extends Controller
         if (isset($carrito[$clave])) {
             $carrito[$clave]['cantidad'] = $cantidadTotal;
         } else {
+            $precioActual = $this->precioVigente($producto->id_producto, $talla->id_talla);
+
             $carrito[$clave] = [
                 'id_producto' => $producto->id_producto,
                 'id_talla'    => $talla->id_talla,
                 'nombre'      => $producto->nombre,
                 'talla'       => $talla->nombre,
-                'precio'      => $producto->precio_venta_base,
+                'precio'      => $precioActual,
                 'cantidad'    => $cantidadTotal,
                 'imagen'      => optional($producto->imagenes_productos->first())->url_imagen,
             ];
