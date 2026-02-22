@@ -63,18 +63,19 @@
 
         <hr>
 
-        {{-- Botón agregar al carrito (habilitado en Phase 4) --}}
+        {{-- Agregar al carrito --}}
         @auth
-            <form method="POST" action="{{ route('carrito.agregar', $producto->id_producto) }}">
+            <form method="POST" action="{{ route('carrito.agregar', $producto->id_producto) }}" id="formCarrito">
                 @csrf
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Talla</label>
-                    <select name="id_talla" class="form-select" required>
+                    <select name="id_talla" id="selTalla" class="form-select" required>
                         <option value="">Selecciona una talla</option>
                         @foreach($tallas as $talla)
                             @php $stock = $stockPorTalla[$talla->id_talla] ?? 0; @endphp
                             <option value="{{ $talla->id_talla }}"
-                                {{ $stock <= 0 ? 'disabled' : '' }}>
+                                    data-stock="{{ $stock }}"
+                                    {{ $stock <= 0 ? 'disabled' : '' }}>
                                 {{ $talla->nombre }}
                                 @if($stock > 0)
                                     ({{ $stock }} disp.)
@@ -86,10 +87,12 @@
                     </select>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label fw-semibold">Cantidad</label>
-                    <input type="number" name="cantidad" class="form-control" value="1" min="1" max="10">
+                    <label class="form-label fw-semibold">Cantidad <span class="text-muted fw-normal small">(máx. 5)</span></label>
+                    <input type="number" name="cantidad" id="inputCantidad"
+                           class="form-control" value="1" min="1" max="5">
+                    <div id="msgCantidad" class="text-danger small mt-1 d-none"></div>
                 </div>
-                <button type="submit" class="btn btn-success btn-lg w-100">
+                <button type="submit" id="btnAgregar" class="btn btn-success btn-lg w-100">
                     <i class="bi bi-cart-plus me-2"></i>Agregar al carrito
                 </button>
             </form>
@@ -113,5 +116,52 @@
         document.querySelectorAll('.thumbnail').forEach(t => t.classList.remove('active'));
         el.classList.add('active');
     }
+
+    const MAX_CARRITO = 5;
+    const selTalla     = document.getElementById('selTalla');
+    const inputCantidad = document.getElementById('inputCantidad');
+    const msgCantidad  = document.getElementById('msgCantidad');
+    const btnAgregar   = document.getElementById('btnAgregar');
+
+    function validarCantidad() {
+        const opt   = selTalla.options[selTalla.selectedIndex];
+        const stock = (opt && opt.value) ? parseInt(opt.dataset.stock || 0) : 0;
+        const maxPermitido = Math.min(stock, MAX_CARRITO);
+        const cantidad = parseInt(inputCantidad.value) || 0;
+
+        inputCantidad.max = maxPermitido > 0 ? maxPermitido : 1;
+
+        if (!opt || !opt.value || stock === 0) {
+            msgCantidad.classList.add('d-none');
+            btnAgregar.disabled = (!opt || !opt.value);
+            return;
+        }
+
+        if (cantidad > maxPermitido) {
+            let razon;
+            if (cantidad > MAX_CARRITO && cantidad > stock) {
+                razon = `Máximo permitido: ${MAX_CARRITO} por pedido y solo hay ${stock} en stock.`;
+            } else if (cantidad > stock) {
+                razon = `La cantidad de camisas sobrepasa la disponible. Máximo disponible: ${stock} unidades.`;
+            } else {
+                razon = `El máximo por pedido es ${MAX_CARRITO} unidades.`;
+            }
+            msgCantidad.textContent = razon;
+            msgCantidad.classList.remove('d-none');
+            btnAgregar.disabled = true;
+        } else {
+            msgCantidad.classList.add('d-none');
+            btnAgregar.disabled = false;
+        }
+    }
+
+    selTalla.addEventListener('change', () => {
+        inputCantidad.value = 1;
+        validarCantidad();
+    });
+    inputCantidad.addEventListener('input', validarCantidad);
+
+    // Run once on load so button state is correct before a talla is selected
+    validarCantidad();
 </script>
 @endpush

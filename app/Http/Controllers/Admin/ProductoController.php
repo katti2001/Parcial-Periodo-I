@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Categoria;
+use App\Models\DetalleCompra;
 use App\Models\Equipo;
 use App\Models\ImagenesProducto;
 use App\Models\Producto;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 
 class ProductoController extends Controller
@@ -18,7 +20,23 @@ class ProductoController extends Controller
             ->orderBy('nombre')
             ->paginate(15);
 
-        return view('admin.productos.index', compact('productos'));
+        // Stock disponible: compras ya recibidas (cantidad_restante no consumida)
+        $stockDisponible = DetalleCompra::select('dc.id_producto', DB::raw('SUM(dc.cantidad_restante) as total'))
+            ->from('detalle_compras as dc')
+            ->join('compras as c', 'c.id_compra', '=', 'dc.id_compra')
+            ->where('c.estado', 'recibido')
+            ->groupBy('dc.id_producto')
+            ->pluck('total', 'dc.id_producto');
+
+        // Stock en camino: compras solicitadas (aún no recibidas)
+        $stockEnCamino = DetalleCompra::select('dc.id_producto', DB::raw('SUM(dc.cantidad_comprada) as total'))
+            ->from('detalle_compras as dc')
+            ->join('compras as c', 'c.id_compra', '=', 'dc.id_compra')
+            ->where('c.estado', 'solicitado')
+            ->groupBy('dc.id_producto')
+            ->pluck('total', 'dc.id_producto');
+
+        return view('admin.productos.index', compact('productos', 'stockDisponible', 'stockEnCamino'));
     }
 
     public function create()

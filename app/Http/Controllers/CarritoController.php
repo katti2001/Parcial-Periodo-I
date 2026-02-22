@@ -38,7 +38,7 @@ class CarritoController extends Controller
     {
         $request->validate([
             'id_talla'  => 'required|integer',
-            'cantidad'  => 'required|integer|min:1|max:10',
+            'cantidad'  => 'required|integer|min:1|max:5',
         ]);
 
         $producto = Producto::with('imagenes_productos')->where('activo', true)->findOrFail($id);
@@ -60,7 +60,7 @@ class CarritoController extends Controller
 
         if ($cantidadTotal > $stock) {
             return redirect()->back()
-                ->with('error', "Solo hay {$stock} unidad(es) disponibles en talla {$talla->nombre}.");
+                ->with('error', "La cantidad de camisas sobrepasa la disponible. Solo hay {$stock} unidad(es) en stock para la talla {$talla->nombre}.");
         }
 
         if (isset($carrito[$clave])) {
@@ -88,7 +88,7 @@ class CarritoController extends Controller
      */
     public function actualizar(Request $request, $clave)
     {
-        $request->validate(['cantidad' => 'required|integer|min:1|max:10']);
+        $request->validate(['cantidad' => 'required|integer|min:1|max:5']);
 
         $carrito = session('carrito', []);
 

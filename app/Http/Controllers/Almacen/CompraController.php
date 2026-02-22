@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Almacen;
 
 use App\Http\Controllers\Controller;
+use App\Models\Categoria;
 use App\Models\Compra;
 use App\Models\DetalleCompra;
+use App\Models\Equipo;
 use App\Models\Kardex;
 use App\Models\Producto;
 use App\Models\Proveedor;
@@ -28,13 +30,15 @@ class CompraController extends Controller
         $proveedores = Proveedor::orderBy('nombre_empresa')->get();
         $productos   = Producto::where('activo', true)->orderBy('nombre')->get();
         $tallas      = Talla::orderBy('nombre')->get();
+        $categorias  = Categoria::orderBy('nombre')->get();
+        $equipos     = Equipo::orderBy('nombre')->get();
 
-        return view('almacen.compras.create', compact('proveedores', 'productos', 'tallas'));
+        return view('almacen.compras.create', compact('proveedores', 'productos', 'tallas', 'categorias', 'equipos'));
     }
 
     /**
      * Registrar una compra con sus detalles.
-     * Actualiza cantidad_restante e inserta en kardex dentro de una transacción.
+     * Crea productos nuevos si es necesario, calcula precio_venta_base con el margen indicado.
      */
     public function store(Request $request)
     {
@@ -43,17 +47,91 @@ class CompraController extends Controller
             'fecha_compra'              => 'required|date',
             'numero_factura_proveedor'  => 'nullable|string|max:50',
             'estado'                    => 'required|in:solicitado,recibido,cancelado',
+            'margen'                    => 'required|numeric|min:0|max:500',
             'items'                     => 'required|array|min:1',
-            'items.*.id_producto'       => 'required|exists:productos,id_producto',
+            'items.*.es_nuevo'          => 'required|in:0,1',
+            // producto existente
+            'items.*.id_producto'       => 'nullable|integer',
+            // producto nuevo
+            'items.*.sku_base'          => 'nullable|string|max:20',
+            'items.*.nombre'            => 'nullable|string|max:100',
+            'items.*.descripcion'       => 'nullable|string',
+            'items.*.id_categoria'      => 'nullable|integer|exists:categorias,id_categoria',
+            'items.*.id_equipo'         => 'nullable|integer|exists:equipos,id_equipo',
+            // comunes
             'items.*.id_talla'          => 'required|exists:tallas,id_talla',
             'items.*.cantidad_comprada' => 'required|integer|min:1',
             'items.*.costo_unitario'    => 'required|numeric|min:0',
         ]);
 
-        DB::transaction(function () use ($request) {
-            // Calcular total
-            $total = collect($request->items)
-                ->sum(fn($i) => $i['cantidad_comprada'] * $i['costo_unitario']);
+        $margen = (float) $request->margen;
+
+        // Validar SKUs de productos nuevos antes de abrir la transacción
+        $erroresSku = [];
+        $skusEnEstaCompra = [];
+        foreach ($request->items as $i => $item) {
+            if ((int) $item['es_nuevo'] !== 1) continue;
+
+            $sku = trim($item['sku_base'] ?? '');
+
+            if (empty($sku)) continue;
+
+            // Duplicado en la misma compra (dos filas con el mismo SKU nuevo)
+            if (in_array($sku, $skusEnEstaCompra)) {
+                $erroresSku["items.{$i}.sku_base"] = ["El SKU «{$sku}» está duplicado en esta compra."];
+            }
+            $skusEnEstaCompra[] = $sku;
+
+            // Duplicado en la base de datos
+            if (Producto::where('sku_base', $sku)->exists()) {
+                $erroresSku["items.{$i}.sku_base"] = ["El SKU «{$sku}» ya existe. Selecciónalo desde 'Producto existente'."];
+            }
+        }
+
+        if (!empty($erroresSku)) {
+            return back()->withInput()->withErrors($erroresSku);
+        }
+
+        DB::transaction(function () use ($request, $margen) {
+            $total = 0;
+
+            // Pre-procesar ítems: resolver o crear productos
+            $itemsResueltos = [];
+            foreach ($request->items as $item) {
+                $cantidad = (int)   $item['cantidad_comprada'];
+                $costo    = (float) $item['costo_unitario'];
+                $total   += $cantidad * $costo;
+
+                if ((int) $item['es_nuevo'] === 1) {
+                    // Validar campos obligatorios del producto nuevo
+                    if (empty($item['sku_base']) || empty($item['nombre'])) {
+                        abort(422, 'SKU y nombre son obligatorios para productos nuevos.');
+                    }
+
+                    $precioVenta = round($costo * (1 + $margen / 100), 2);
+
+                    $producto = Producto::create([
+                        'sku_base'          => $item['sku_base'],
+                        'nombre'            => $item['nombre'],
+                        'descripcion'       => $item['descripcion'] ?? null,
+                        'precio_venta_base' => $precioVenta,
+                        'id_categoria'      => $item['id_categoria'] ?: null,
+                        'id_equipo'         => $item['id_equipo'] ?: null,
+                        'activo'            => true,
+                    ]);
+
+                    $idProducto = $producto->id_producto;
+                } else {
+                    $idProducto = (int) $item['id_producto'];
+                }
+
+                $itemsResueltos[] = [
+                    'id_producto'       => $idProducto,
+                    'id_talla'          => $item['id_talla'],
+                    'cantidad_comprada' => $cantidad,
+                    'costo_unitario'    => $costo,
+                ];
+            }
 
             $compra = Compra::create([
                 'id_proveedor'             => $request->id_proveedor,
@@ -63,17 +141,16 @@ class CompraController extends Controller
                 'estado'                   => $request->estado,
             ]);
 
-            foreach ($request->items as $item) {
-                $detalle = DetalleCompra::create([
+            foreach ($itemsResueltos as $item) {
+                DetalleCompra::create([
                     'id_compra'         => $compra->id_compra,
                     'id_producto'       => $item['id_producto'],
                     'id_talla'          => $item['id_talla'],
                     'cantidad_comprada' => $item['cantidad_comprada'],
-                    'cantidad_restante' => $item['cantidad_comprada'], // inicia igual
+                    'cantidad_restante' => $item['cantidad_comprada'],
                     'costo_unitario'    => $item['costo_unitario'],
                 ]);
 
-                // Solo insertar en kardex si el estado es "recibido"
                 if ($request->estado === 'recibido') {
                     Kardex::create([
                         'id_producto'     => $item['id_producto'],
@@ -103,7 +180,7 @@ class CompraController extends Controller
     }
 
     /**
-     * Marcar una compra como "recibida" e insertar en kardex si aún no se hizo.
+     * Marcar una compra como "recibida" e insertar en kardex.
      */
     public function recibirCompra($id)
     {

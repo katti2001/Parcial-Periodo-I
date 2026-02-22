@@ -56,6 +56,11 @@
         </ul>
 
         <div class="mt-auto pt-3 border-top border-secondary">
+            @if(Auth::user()->esAdmin())
+                <a href="{{ route('admin.dashboard') }}" class="btn btn-sm btn-outline-light w-100 mb-2">
+                    <i class="bi bi-arrow-left me-1"></i>Panel Admin
+                </a>
+            @endif
             <p class="text-muted small mb-1">
                 <i class="bi bi-person-circle me-1"></i>
                 {{ Auth::user()->nombre }} {{ Auth::user()->apellido }}

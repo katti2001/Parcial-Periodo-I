@@ -64,10 +64,8 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard',                            [AdminDashboard::class, 'index'])->name('dashboard');
 
-    // Productos
+    // Productos (solo editar, desactivar y ver — crear es desde Almacén > Compras)
     Route::get('/productos',                            [AdminProducto::class, 'index'])->name('productos.index');
-    Route::get('/productos/crear',                      [AdminProducto::class, 'create'])->name('productos.create');
-    Route::post('/productos',                           [AdminProducto::class, 'store'])->name('productos.store');
     Route::get('/productos/{id}/editar',                [AdminProducto::class, 'edit'])->name('productos.edit');
     Route::put('/productos/{id}',                       [AdminProducto::class, 'update'])->name('productos.update');
     Route::delete('/productos/{id}',                    [AdminProducto::class, 'destroy'])->name('productos.destroy');
