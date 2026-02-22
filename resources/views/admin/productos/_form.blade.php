@@ -47,6 +47,50 @@
             @endforeach
         </select>
     </div>
+
+    {{-- Imágenes actuales (solo en edición) --}}
+    @isset($producto)
+        @if($producto->imagenes_productos->count())
+        <div class="col-12">
+            <label class="form-label fw-semibold">Imágenes actuales</label>
+            <div class="d-flex flex-wrap gap-2">
+                @foreach($producto->imagenes_productos as $img)
+                <div class="border rounded p-1 text-center" style="width:110px">
+                    <img src="{{ $img->url_imagen }}" alt="imagen"
+                         class="img-fluid rounded mb-1" style="height:80px;object-fit:cover">
+                    @if($img->es_principal)
+                        <span class="badge bg-dark d-block mb-1">Principal</span>
+                    @endif
+                    <div class="form-check d-flex justify-content-center">
+                        <input type="checkbox" name="eliminar_imagenes[]"
+                               value="{{ $img->id_imagen }}"
+                               class="form-check-input"
+                               id="del_img_{{ $img->id_imagen }}">
+                        <label class="form-check-label ms-1 small text-danger"
+                               for="del_img_{{ $img->id_imagen }}">Eliminar</label>
+                    </div>
+                </div>
+                @endforeach
+            </div>
+        </div>
+        @endif
+    @endisset
+
+    {{-- Subir nuevas imágenes --}}
+    <div class="col-12">
+        <label class="form-label fw-semibold">
+            {{ isset($producto) ? 'Agregar imágenes' : 'Imágenes del producto' }}
+            <span class="text-muted fw-normal">(máx. 5 archivos · 3 MB c/u · JPG, PNG, WEBP)</span>
+        </label>
+        <input type="file" name="imagenes[]" multiple
+               accept="image/jpeg,image/png,image/webp"
+               class="form-control @error('imagenes') is-invalid @enderror @error('imagenes.*') is-invalid @enderror"
+               id="inputImagenes">
+        @error('imagenes')   <div class="invalid-feedback">{{ $message }}</div>@enderror
+        @error('imagenes.*') <div class="invalid-feedback">{{ $message }}</div>@enderror
+        <div id="previewImagenes" class="d-flex flex-wrap gap-2 mt-2"></div>
+    </div>
+
     <div class="col-12">
         <div class="form-check">
             <input type="checkbox" name="activo" value="1" id="activo" class="form-check-input"
@@ -55,3 +99,21 @@
         </div>
     </div>
 </div>
+
+{{-- Preview JS de imágenes seleccionadas --}}
+<script>
+document.getElementById('inputImagenes').addEventListener('change', function () {
+    const preview = document.getElementById('previewImagenes');
+    preview.innerHTML = '';
+    Array.from(this.files).forEach(file => {
+        const reader = new FileReader();
+        reader.onload = e => {
+            const img = document.createElement('img');
+            img.src = e.target.result;
+            img.style.cssText = 'height:80px;width:80px;object-fit:cover;border-radius:6px;border:1px solid #dee2e6';
+            preview.appendChild(img);
+        };
+        reader.readAsDataURL(file);
+    });
+});
+</script>

@@ -83,7 +83,7 @@
                     </div>
 
                     {{-- Confirmar Password --}}
-                    <div class="mb-4">
+                    <div class="mb-3">
                         <label for="password_confirmation" class="form-label fw-semibold">Confirmar contraseña</label>
                         <input
                             type="password"
@@ -94,6 +94,23 @@
                             required
                         >
                     </div>
+
+                    {{-- Rol (solo visible para admins) --}}
+                    @auth
+                        @if(Auth::user()->esAdmin())
+                        <div class="mb-4">
+                            <label for="rol" class="form-label fw-semibold">Rol</label>
+                            <select id="rol" name="rol" class="form-select @error('rol') is-invalid @enderror">
+                                <option value="cliente" {{ old('rol') === 'cliente' ? 'selected' : '' }}>Cliente</option>
+                                <option value="admin"   {{ old('rol') === 'admin'   ? 'selected' : '' }}>Administrador</option>
+                                <option value="almacen" {{ old('rol') === 'almacen' ? 'selected' : '' }}>Almacén</option>
+                            </select>
+                            @error('rol')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                        @endif
+                    @endauth
 
                     <div class="d-grid">
                         <button type="submit" class="btn btn-dark btn-lg">

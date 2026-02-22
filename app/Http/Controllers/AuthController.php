@@ -6,6 +6,7 @@ use App\Models\Usuario;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 
 class AuthController extends Controller
 {
@@ -18,12 +19,19 @@ class AuthController extends Controller
 
     public function registro(Request $request)
     {
-        $request->validate([
+        $rules = [
             'nombre'   => 'required|string|max:100',
             'apellido' => 'required|string|max:100',
             'email'    => 'required|email|max:100|unique:usuarios,email',
             'password' => 'required|string|min:8|confirmed',
-        ], [
+        ];
+
+        // Solo un admin puede enviar el campo rol
+        if (Auth::check() && Auth::user()->esAdmin()) {
+            $rules['rol'] = ['required', Rule::in(['cliente', 'admin', 'almacen'])];
+        }
+
+        $request->validate($rules, [
             'nombre.required'    => 'El nombre es obligatorio.',
             'apellido.required'  => 'El apellido es obligatorio.',
             'email.required'     => 'El correo es obligatorio.',
@@ -31,15 +39,28 @@ class AuthController extends Controller
             'password.required'  => 'La contraseña es obligatoria.',
             'password.min'       => 'La contraseña debe tener al menos 8 caracteres.',
             'password.confirmed' => 'Las contraseñas no coinciden.',
+            'rol.required'       => 'El rol es obligatorio.',
+            'rol.in'             => 'El rol seleccionado no es válido.',
         ]);
+
+        // El rol solo lo asigna el admin; cualquier otro siempre queda como cliente
+        $rol = (Auth::check() && Auth::user()->esAdmin())
+            ? $request->rol
+            : 'cliente';
 
         $usuario = Usuario::create([
             'nombre'   => $request->nombre,
             'apellido' => $request->apellido,
             'email'    => $request->email,
             'password' => Hash::make($request->password),
-            'rol'      => 'cliente',
+            'rol'      => $rol,
         ]);
+
+        // Si un admin creó el usuario, no lo loguea — lo redirige al dashboard
+        if (Auth::check() && Auth::user()->esAdmin()) {
+            return redirect()->route('admin.dashboard')
+                ->with('success', "Usuario {$usuario->nombre} creado con rol '{$rol}'.");
+        }
 
         Auth::login($usuario);
 

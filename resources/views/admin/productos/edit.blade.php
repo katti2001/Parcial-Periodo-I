@@ -5,7 +5,7 @@
 @section('content')
 <div class="card border-0 shadow-sm" style="max-width:700px">
     <div class="card-body">
-        <form method="POST" action="{{ route('admin.productos.update', $producto->id_producto) }}">
+        <form method="POST" action="{{ route('admin.productos.update', $producto->id_producto) }}" enctype="multipart/form-data">
             @csrf @method('PUT')
             @include('admin.productos._form')
             <div class="d-flex gap-2 mt-3">

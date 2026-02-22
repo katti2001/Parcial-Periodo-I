@@ -5,7 +5,7 @@
 @section('content')
 <div class="card border-0 shadow-sm" style="max-width:700px">
     <div class="card-body">
-        <form method="POST" action="{{ route('admin.productos.store') }}">
+        <form method="POST" action="{{ route('admin.productos.store') }}" enctype="multipart/form-data">
             @csrf
             @include('admin.productos._form')
             <div class="d-flex gap-2 mt-3">
