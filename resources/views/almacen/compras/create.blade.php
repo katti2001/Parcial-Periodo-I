@@ -3,7 +3,9 @@
 @section('header', 'Registrar Compra / Entrada')
 
 @section('content')
-<form method="POST" action="{{ route('almacen.compras.store') }}" id="formCompra">
+{{-- enctype requerido para subida de imágenes --}}
+<form method="POST" action="{{ route('almacen.compras.store') }}"
+      id="formCompra" enctype="multipart/form-data">
     @csrf
 
     {{-- Cabecera --}}
@@ -82,7 +84,7 @@
                 <thead class="table-light">
                     <tr>
                         <th style="width:130px">Tipo</th>
-                        <th style="min-width:220px">Producto</th>
+                        <th style="min-width:260px">Producto</th>
                         <th style="min-width:110px">Talla</th>
                         <th style="min-width:90px">Cantidad</th>
                         <th style="min-width:110px">Costo unit.</th>
@@ -92,7 +94,7 @@
                     </tr>
                 </thead>
                 <tbody id="filas">
-                    {{-- fila inicial generada por JS al cargar --}}
+                    {{-- filas generadas por JS --}}
                 </tbody>
                 <tfoot>
                     <tr>
@@ -115,17 +117,37 @@
 </form>
 @endsection
 
+@push('styles')
+<style>
+.panel-imagenes .img-preview-wrap {
+    position: relative; display: inline-block;
+}
+.panel-imagenes .img-preview-wrap .btn-rm-img {
+    position: absolute; top: 2px; right: 2px;
+    padding: 0 4px; font-size: .7rem; line-height: 1.4;
+}
+.panel-imagenes img.preview-thumb {
+    width: 72px; height: 72px; object-fit: cover;
+    border-radius: .25rem; border: 1px solid #dee2e6;
+}
+.mismo-badge {
+    font-size: .7rem; background: #e9ecef; border-radius: .25rem;
+    padding: 2px 6px; color: #495057;
+}
+</style>
+@endpush
+
 @push('scripts')
 <script>
-// Datos pasados desde PHP
-const productosExistentes = @json($productos->map(fn($p) => ['id' => $p->id_producto, 'nombre' => $p->nombre, 'precio' => $p->precio_venta_base]));
-const tallasDisponibles   = @json($tallas->map(fn($t) => ['id' => $t->id_talla, 'nombre' => $t->nombre]));
+// ── Datos desde PHP ────────────────────────────────────────────────────────────
+const productosExistentes   = @json($productos->map(fn($p) => ['id' => $p->id_producto, 'nombre' => $p->nombre, 'precio' => $p->precio_venta_base]));
+const tallasDisponibles     = @json($tallas->map(fn($t) => ['id' => $t->id_talla, 'nombre' => $t->nombre]));
 const categoriasDisponibles = @json($categorias->map(fn($c) => ['id' => $c->id_categoria, 'nombre' => $c->nombre]));
-const equiposDisponibles  = @json($equipos->map(fn($e) => ['id' => $e->id_equipo, 'nombre' => $e->nombre]));
+const equiposDisponibles    = @json($equipos->map(fn($e) => ['id' => $e->id_equipo, 'nombre' => $e->nombre]));
 
 let filaIndex = 0;
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────────────────────────
 function getMargen() {
     return parseFloat(document.getElementById('inputMargen').value) || 25;
 }
@@ -140,19 +162,16 @@ function recalcularTotales() {
         total += sub;
 
         // Recalcular precio venta si es producto nuevo
-        const esNuevo = fila.querySelector('.inp-es-nuevo');
-        if (esNuevo && esNuevo.value === '1') {
-            const margen = getMargen();
+        if (fila.querySelector('.inp-es-nuevo').value === '1') {
+            const margen  = getMargen();
             const pvInput = fila.querySelector('.inp-precio-venta');
-            if (pvInput) {
-                pvInput.value = (costo * (1 + margen / 100)).toFixed(2);
-            }
+            if (pvInput) pvInput.value = (costo * (1 + margen / 100)).toFixed(2);
         }
     });
     document.getElementById('totalGeneral').textContent = '$' + total.toFixed(2);
 }
 
-// ─── Build options ─────────────────────────────────────────────────────────────
+// ── Constructores de <option> ──────────────────────────────────────────────────
 function buildOptsProducto() {
     return productosExistentes.map(p =>
         `<option value="${p.id}" data-precio="${p.precio}">${p.nombre}</option>`
@@ -170,33 +189,73 @@ function buildOptsEquipo() {
         equiposDisponibles.map(e => `<option value="${e.id}">${e.nombre}</option>`).join('');
 }
 
-// ─── Template de fila ─────────────────────────────────────────────────────────
-function buildFila(idx) {
+// ── Template de fila ───────────────────────────────────────────────────────────
+function buildFila(idx, esPrimera) {
     const margen = getMargen();
+    // El toggle "mismo producto" solo aparece si NO es la primera fila
+    const mismoBtn = esPrimera ? '' : `
+        <div class="mt-2">
+            <button type="button" class="btn btn-xs btn-outline-secondary btn-mismo-producto"
+                    style="font-size:.75rem;padding:2px 8px;" title="Usar los mismos datos del producto de la fila anterior">
+                <i class="bi bi-arrow-up me-1"></i>Mismo producto anterior
+            </button>
+        </div>`;
+
     return `
 <tr class="fila-item" data-idx="${idx}">
   <td>
     <input type="hidden" name="items[${idx}][es_nuevo]" class="inp-es-nuevo" value="0">
+    <input type="hidden" name="items[${idx}][mismo_producto]" class="inp-mismo-producto" value="0">
     <div class="btn-group btn-group-sm w-100" role="group">
       <button type="button" class="btn btn-outline-secondary btn-tipo active" data-tipo="existente">Existente</button>
       <button type="button" class="btn btn-outline-primary btn-tipo" data-tipo="nuevo">Nuevo</button>
     </div>
+    ${mismoBtn}
   </td>
 
-  {{-- Panel: producto existente --}}
+  <!-- Panel: producto existente -->
   <td>
     <div class="panel-existente">
       <select name="items[${idx}][id_producto]" class="form-select form-select-sm sel-producto">
         <option value="">Selecciona...</option>${buildOptsProducto()}
       </select>
     </div>
-    {{-- Panel: producto nuevo --}}
+
+    <!-- Panel: producto nuevo -->
     <div class="panel-nuevo d-none">
-      <input type="text"   name="items[${idx}][sku_base]"     class="form-control form-control-sm mb-1" placeholder="SKU *" maxlength="20">
-      <input type="text"   name="items[${idx}][nombre]"       class="form-control form-control-sm mb-1" placeholder="Nombre *" maxlength="100">
-      <input type="text"   name="items[${idx}][descripcion]"  class="form-control form-control-sm mb-1" placeholder="Descripción (opcional)">
-      <select name="items[${idx}][id_categoria]" class="form-select form-select-sm mb-1">${buildOptsCat()}</select>
-      <select name="items[${idx}][id_equipo]"    class="form-select form-select-sm">${buildOptsEquipo()}</select>
+
+      <!-- Bloque campos nuevo producto — se oculta cuando es "mismo" -->
+      <div class="campos-nuevo-producto">
+        <input type="text"   name="items[${idx}][sku_base]"    class="form-control form-control-sm mb-1 inp-sku"    placeholder="SKU *" maxlength="20">
+        <input type="text"   name="items[${idx}][nombre]"      class="form-control form-control-sm mb-1 inp-nombre" placeholder="Nombre *" maxlength="100">
+        <input type="text"   name="items[${idx}][descripcion]" class="form-control form-control-sm mb-1 inp-desc"   placeholder="Descripción (opcional)">
+        <select name="items[${idx}][id_categoria]" class="form-select form-select-sm mb-1 inp-cat">${buildOptsCat()}</select>
+        <select name="items[${idx}][id_equipo]"    class="form-select form-select-sm mb-1 inp-equipo">${buildOptsEquipo()}</select>
+
+        <!-- Sección imágenes — solo visible en fila "líder" (no mismo-producto) -->
+        <div class="panel-imagenes mt-2 border rounded p-2 bg-light">
+          <div class="d-flex align-items-center justify-content-between mb-1">
+            <small class="fw-semibold text-secondary"><i class="bi bi-images me-1"></i>Imágenes del producto</small>
+            <label class="btn btn-xs btn-outline-secondary" style="font-size:.75rem;padding:2px 8px;cursor:pointer;">
+              <i class="bi bi-upload me-1"></i>Agregar
+              <input type="file" name="imagenes[${idx}][]" class="inp-imagenes d-none"
+                     accept="image/*" multiple>
+            </label>
+          </div>
+          <div class="preview-grid d-flex flex-wrap gap-1"></div>
+          <small class="text-muted d-block mt-1" style="font-size:.7rem">
+            La primera imagen será la principal. Máx. 5 imágenes.
+          </small>
+        </div>
+      </div>
+
+      <!-- Badge "mismo producto que fila anterior" — visible cuando mismo=1 -->
+      <div class="aviso-mismo d-none">
+        <span class="mismo-badge"><i class="bi bi-arrow-up me-1"></i>Mismo producto que la fila anterior</span>
+        <div class="mt-1">
+          <small class="text-muted fila-ref-nombre"></small>
+        </div>
+      </div>
     </div>
   </td>
 
@@ -215,8 +274,8 @@ function buildFila(idx) {
   </td>
   <td>
     <input type="number" class="form-control form-control-sm inp-precio-venta bg-light"
-           value="${(0 * (1 + margen / 100)).toFixed(2)}" step="0.01" readonly
-           title="Precio de venta calculado con margen del ${margen}%">
+           value="0.00" step="0.01" readonly
+           title="Precio de venta calculado con margen">
     <small class="text-muted d-block" style="font-size:.7rem">costo × ${margen}% margen</small>
   </td>
   <td class="td-subtotal text-end small fw-semibold">$0.00</td>
@@ -228,9 +287,106 @@ function buildFila(idx) {
 </tr>`;
 }
 
-// ─── Bind eventos de una fila ──────────────────────────────────────────────────
+// ── Encontrar la fila "líder" de un grupo mismo-producto ──────────────────────
+// Recorre hacia arriba desde la fila dada y devuelve la primera fila
+// del grupo que NO tiene mismo_producto=1 y que es tipo "nuevo".
+function encontrarLider(fila) {
+    let lider = fila;
+    let prev  = fila.previousElementSibling;
+    while (prev && prev.classList.contains('fila-item')) {
+        const esNuevoPrev  = prev.querySelector('.inp-es-nuevo').value === '1';
+        const mismoPrev    = prev.querySelector('.inp-mismo-producto').value === '1';
+        if (!esNuevoPrev) break;          // fila existente → rompe el grupo
+        lider = prev;
+        if (!mismoPrev) break;            // llegamos al líder real
+        prev = prev.previousElementSibling;
+    }
+    return lider;
+}
+
+// ── Activar modo "mismo producto" en una fila ─────────────────────────────────
+function activarMismo(fila) {
+    fila.querySelector('.inp-mismo-producto').value = '1';
+    fila.querySelector('.campos-nuevo-producto').classList.add('d-none');
+    fila.querySelector('.aviso-mismo').classList.remove('d-none');
+
+    // Mostrar nombre del producto líder como referencia
+    const lider = encontrarLider(fila);
+    const nombreLider = lider !== fila ? lider.querySelector('.inp-nombre').value.trim() : '';
+    const refEl = fila.querySelector('.fila-ref-nombre');
+    if (refEl) refEl.textContent = nombreLider ? `"${nombreLider}"` : '(sin nombre aún)';
+
+    // Ocultar input de imágenes (solo existe en el líder)
+    const panelImg = fila.querySelector('.panel-imagenes');
+    if (panelImg) panelImg.classList.add('d-none');
+
+    actualizarBtnMismo(fila);
+}
+
+// ── Desactivar modo "mismo producto" en una fila ──────────────────────────────
+function desactivarMismo(fila) {
+    fila.querySelector('.inp-mismo-producto').value = '0';
+    fila.querySelector('.campos-nuevo-producto').classList.remove('d-none');
+    fila.querySelector('.aviso-mismo').classList.add('d-none');
+
+    const panelImg = fila.querySelector('.panel-imagenes');
+    if (panelImg) panelImg.classList.remove('d-none');
+
+    actualizarBtnMismo(fila);
+}
+
+// ── Actualizar texto/estado del botón mismo-producto ─────────────────────────
+function actualizarBtnMismo(fila) {
+    const btn = fila.querySelector('.btn-mismo-producto');
+    if (!btn) return;
+    const activo = fila.querySelector('.inp-mismo-producto').value === '1';
+    if (activo) {
+        btn.classList.replace('btn-outline-secondary', 'btn-secondary');
+        btn.innerHTML = '<i class="bi bi-x me-1"></i>Producto separado';
+        btn.title = 'Crear como producto distinto al anterior';
+    } else {
+        btn.classList.replace('btn-secondary', 'btn-outline-secondary');
+        btn.innerHTML = '<i class="bi bi-arrow-up me-1"></i>Mismo producto anterior';
+        btn.title = 'Usar los mismos datos del producto de la fila anterior';
+    }
+}
+
+// ── Preview de imágenes ────────────────────────────────────────────────────────
+function bindImagenPreview(fila) {
+    const inputFile = fila.querySelector('.inp-imagenes');
+    if (!inputFile) return;
+
+    inputFile.addEventListener('change', function () {
+        const grid   = fila.querySelector('.preview-grid');
+        const maxImg = 5;
+        const existing = grid.querySelectorAll('.img-preview-wrap').length;
+
+        Array.from(this.files).forEach((file, i) => {
+            if (existing + i >= maxImg) return; // máx 5
+            const reader = new FileReader();
+            reader.onload = e => {
+                const wrap = document.createElement('div');
+                wrap.className = 'img-preview-wrap';
+                wrap.innerHTML = `
+                    <img src="${e.target.result}" class="preview-thumb" alt="">
+                    <button type="button" class="btn btn-danger btn-rm-img">×</button>`;
+                wrap.querySelector('.btn-rm-img').addEventListener('click', () => wrap.remove());
+                grid.appendChild(wrap);
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // Limitar el input a maxImg - existing archivos
+        if (existing >= maxImg) {
+            this.value = '';
+        }
+    });
+}
+
+// ── Bind de todos los eventos de una fila ────────────────────────────────────
 function bindFila(fila) {
-    // Toggle existente / nuevo
+
+    // Toggle Existente / Nuevo
     fila.querySelectorAll('.btn-tipo').forEach(btn => {
         btn.addEventListener('click', () => {
             const tipo = btn.dataset.tipo;
@@ -243,57 +399,101 @@ function bindFila(fila) {
             fila.querySelector('.panel-existente').classList.toggle('d-none', tipo === 'nuevo');
             fila.querySelector('.panel-nuevo').classList.toggle('d-none', tipo === 'existente');
 
+            // Si vuelve a Existente, resetear estado mismo-producto
+            if (tipo === 'existente') {
+                desactivarMismo(fila);
+                fila.querySelector('.inp-mismo-producto').value = '0';
+            }
+
             recalcularTotales();
         });
     });
 
-    // Al cambiar producto existente, actualizar precio venta como referencia
+    // Botón "mismo producto anterior"
+    const btnMismo = fila.querySelector('.btn-mismo-producto');
+    if (btnMismo) {
+        btnMismo.addEventListener('click', () => {
+            const mismoActual = fila.querySelector('.inp-mismo-producto').value === '1';
+            // Solo funciona si la fila anterior es tipo nuevo
+            const prev = fila.previousElementSibling;
+            if (!prev || !prev.classList.contains('fila-item')) return;
+            const prevEsNuevo = prev.querySelector('.inp-es-nuevo').value === '1';
+            if (!prevEsNuevo) {
+                alert('La fila anterior no es un producto nuevo. Solo puedes usar esta opción si la fila anterior es un producto nuevo.');
+                return;
+            }
+            if (mismoActual) {
+                desactivarMismo(fila);
+            } else {
+                // Asegurarse de que la fila actual es tipo "nuevo"
+                if (fila.querySelector('.inp-es-nuevo').value !== '1') {
+                    // Activar "nuevo" primero
+                    fila.querySelector('[data-tipo="nuevo"]').click();
+                }
+                activarMismo(fila);
+            }
+        });
+    }
+
+    // Al cambiar producto existente → actualizar precio de referencia
     fila.querySelector('.sel-producto').addEventListener('change', function () {
-        const opt = this.options[this.selectedIndex];
+        const opt   = this.options[this.selectedIndex];
         const precio = parseFloat(opt.dataset.precio) || 0;
-        // Solo muestra el precio actual del producto (no recalcula con margen)
         fila.querySelector('.inp-precio-venta').value = precio.toFixed(2);
-        fila.querySelector('.inp-precio-venta').title = 'Precio de venta actual del producto';
+        fila.querySelector('.inp-precio-venta').title  = 'Precio de venta actual del producto';
         recalcularTotales();
     });
 
     fila.querySelector('.inp-cantidad').addEventListener('input', recalcularTotales);
     fila.querySelector('.inp-costo').addEventListener('input', recalcularTotales);
 
+    // Eliminar fila
     fila.querySelector('.btn-eliminar-fila').addEventListener('click', () => {
         if (document.querySelectorAll('.fila-item').length > 1) {
+            // Si la fila siguiente es "mismo producto" de ésta, liberarla
+            const siguiente = fila.nextElementSibling;
+            if (siguiente && siguiente.classList.contains('fila-item')) {
+                if (siguiente.querySelector('.inp-mismo-producto').value === '1') {
+                    desactivarMismo(siguiente);
+                }
+            }
             fila.remove();
             recalcularTotales();
         }
     });
+
+    // Preview de imágenes
+    bindImagenPreview(fila);
 }
 
-// ─── Agregar fila ──────────────────────────────────────────────────────────────
+// ── Agregar fila ───────────────────────────────────────────────────────────────
 document.getElementById('btnAgregarFila').addEventListener('click', () => {
-    const tbody = document.getElementById('filas');
-    tbody.insertAdjacentHTML('beforeend', buildFila(filaIndex++));
+    const tbody   = document.getElementById('filas');
+    const esPrimera = tbody.querySelectorAll('.fila-item').length === 0;
+    tbody.insertAdjacentHTML('beforeend', buildFila(filaIndex++, esPrimera));
     bindFila(tbody.querySelector('tr:last-child'));
     recalcularTotales();
 });
 
-// ─── Margen global cambia → recalcular precio venta de todas las filas nuevas ──
+// ── Margen global cambia → recalcular precios de filas nuevas ─────────────────
 document.getElementById('inputMargen').addEventListener('input', () => {
     const margen = getMargen();
     document.querySelectorAll('.fila-item').forEach(fila => {
         if (fila.querySelector('.inp-es-nuevo').value === '1') {
-            const costo = parseFloat(fila.querySelector('.inp-costo').value) || 0;
-            fila.querySelector('.inp-precio-venta').value = (costo * (1 + margen / 100)).toFixed(2);
-            const smallEl = fila.querySelector('.inp-precio-venta + small');
-            if (smallEl) smallEl.textContent = `costo × ${margen}% margen`;
+            const costo   = parseFloat(fila.querySelector('.inp-costo').value) || 0;
+            const pvInput = fila.querySelector('.inp-precio-venta');
+            pvInput.value = (costo * (1 + margen / 100)).toFixed(2);
+            const smallEl = pvInput.nextElementSibling;
+            if (smallEl && smallEl.tagName === 'SMALL') smallEl.textContent = `costo × ${margen}% margen`;
         }
     });
     recalcularTotales();
 });
 
-// ─── Inicializar con una fila vacía ───────────────────────────────────────────
+// ── Inicializar con una fila vacía ────────────────────────────────────────────
 (function init() {
     const tbody = document.getElementById('filas');
-    tbody.insertAdjacentHTML('beforeend', buildFila(filaIndex++));
+    tbody.insertAdjacentHTML('beforeend', buildFila(filaIndex++, true));
     bindFila(tbody.querySelector('tr:last-child'));
     recalcularTotales();
 })();

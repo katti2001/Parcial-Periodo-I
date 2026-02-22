@@ -7,10 +7,12 @@ use App\Models\Categoria;
 use App\Models\Compra;
 use App\Models\DetalleCompra;
 use App\Models\Equipo;
+use App\Models\ImagenesProducto;
 use App\Models\Kardex;
 use App\Models\Producto;
 use App\Models\Proveedor;
 use App\Models\Talla;
+use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -50,6 +52,7 @@ class CompraController extends Controller
             'margen'                    => 'required|numeric|min:0|max:500',
             'items'                     => 'required|array|min:1',
             'items.*.es_nuevo'          => 'required|in:0,1',
+            'items.*.mismo_producto'    => 'nullable|in:0,1',
             // producto existente
             'items.*.id_producto'       => 'nullable|integer',
             // producto nuevo
@@ -62,27 +65,29 @@ class CompraController extends Controller
             'items.*.id_talla'          => 'required|exists:tallas,id_talla',
             'items.*.cantidad_comprada' => 'required|integer|min:1',
             'items.*.costo_unitario'    => 'required|numeric|min:0',
+            // imágenes: máx 5 por slot, cada una imagen válida ≤ 5 MB
+            'imagenes'                  => 'nullable|array',
+            'imagenes.*'                => 'nullable|array|max:5',
+            'imagenes.*.*'              => 'nullable|image|max:5120',
         ]);
 
         $margen = (float) $request->margen;
 
-        // Validar SKUs de productos nuevos antes de abrir la transacción
-        $erroresSku = [];
+        // Validar SKUs de productos nuevos (solo filas líderes, mismo_producto=0) antes de la transacción
+        $erroresSku      = [];
         $skusEnEstaCompra = [];
         foreach ($request->items as $i => $item) {
             if ((int) $item['es_nuevo'] !== 1) continue;
+            if ((int) ($item['mismo_producto'] ?? 0) === 1) continue; // las filas "mismo" no tienen SKU propio
 
             $sku = trim($item['sku_base'] ?? '');
-
             if (empty($sku)) continue;
 
-            // Duplicado en la misma compra (dos filas con el mismo SKU nuevo)
             if (in_array($sku, $skusEnEstaCompra)) {
                 $erroresSku["items.{$i}.sku_base"] = ["El SKU «{$sku}» está duplicado en esta compra."];
             }
             $skusEnEstaCompra[] = $sku;
 
-            // Duplicado en la base de datos
             if (Producto::where('sku_base', $sku)->exists()) {
                 $erroresSku["items.{$i}.sku_base"] = ["El SKU «{$sku}» ya existe. Selecciónalo desde 'Producto existente'."];
             }
@@ -92,18 +97,42 @@ class CompraController extends Controller
             return back()->withInput()->withErrors($erroresSku);
         }
 
-        DB::transaction(function () use ($request, $margen) {
+        // Subir imágenes a Cloudinary ANTES de la transacción para no mezclar IO con DB
+        // imagenes[idx][] → array indexado por el mismo índice que items[idx]
+        $imagenesSubidas = []; // idx => [ ['url' => ..., 'es_principal' => bool], ... ]
+        $imagenesInput   = $request->file('imagenes', []);
+        foreach ($imagenesInput as $idx => $archivos) {
+            if (empty($archivos)) continue;
+            $imagenesSubidas[$idx] = [];
+            foreach (array_slice($archivos, 0, 5) as $pos => $archivo) {
+                $resultado = Cloudinary::upload($archivo->getRealPath(), [
+                    'folder' => 'tienda_paypal/productos',
+                ]);
+                $imagenesSubidas[$idx][] = [
+                    'url'          => $resultado->getSecurePath(),
+                    'es_principal' => ($pos === 0),
+                ];
+            }
+        }
+
+        DB::transaction(function () use ($request, $margen, $imagenesSubidas) {
             $total = 0;
 
             // Pre-procesar ítems: resolver o crear productos
+            // $ultimoIdNuevo guarda el último id_producto creado para resolver filas "mismo_producto"
+            $ultimoIdNuevo = null;
             $itemsResueltos = [];
-            foreach ($request->items as $item) {
+
+            foreach ($request->items as $idx => $item) {
                 $cantidad = (int)   $item['cantidad_comprada'];
                 $costo    = (float) $item['costo_unitario'];
                 $total   += $cantidad * $costo;
 
-                if ((int) $item['es_nuevo'] === 1) {
-                    // Validar campos obligatorios del producto nuevo
+                $esNuevo   = (int) $item['es_nuevo'] === 1;
+                $esMismo   = (int) ($item['mismo_producto'] ?? 0) === 1;
+
+                if ($esNuevo && !$esMismo) {
+                    // Fila líder: crear producto nuevo
                     if (empty($item['sku_base']) || empty($item['nombre'])) {
                         abort(422, 'SKU y nombre son obligatorios para productos nuevos.');
                     }
@@ -120,9 +149,31 @@ class CompraController extends Controller
                         'activo'            => true,
                     ]);
 
-                    $idProducto = $producto->id_producto;
+                    $idProducto    = $producto->id_producto;
+                    $ultimoIdNuevo = $idProducto;
+
+                    // Asociar imágenes subidas para este índice
+                    if (!empty($imagenesSubidas[$idx])) {
+                        foreach ($imagenesSubidas[$idx] as $img) {
+                            ImagenesProducto::create([
+                                'id_producto'  => $idProducto,
+                                'url_imagen'   => $img['url'],
+                                'es_principal' => $img['es_principal'],
+                            ]);
+                        }
+                    }
+
+                } elseif ($esNuevo && $esMismo) {
+                    // Fila "mismo producto": reutilizar el último producto nuevo creado
+                    if ($ultimoIdNuevo === null) {
+                        abort(422, 'No hay producto nuevo anterior para la fila "mismo producto".');
+                    }
+                    $idProducto = $ultimoIdNuevo;
+
                 } else {
-                    $idProducto = (int) $item['id_producto'];
+                    // Producto existente
+                    $idProducto    = (int) $item['id_producto'];
+                    $ultimoIdNuevo = null; // romper la cadena de "mismo producto"
                 }
 
                 $itemsResueltos[] = [
