@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Cupon;
+use App\Models\Pedido;
 use Illuminate\Http\Request;
 
 class CuponController extends Controller
@@ -63,7 +64,19 @@ class CuponController extends Controller
 
     public function destroy($id)
     {
-        Cupon::findOrFail($id)->delete();
+        $cupon = Cupon::findOrFail($id);
+
+        // Si hay pedidos que referencian este cupón, solo lo desactivamos
+        // para no violar la FK con la tabla pedidos
+        $tienePedidos = Pedido::where('id_cupon', $id)->exists();
+
+        if ($tienePedidos) {
+            $cupon->update(['activo' => false]);
+            return redirect()->route('admin.cupones.index')
+                ->with('warning', 'El cupón tiene pedidos asociados y no puede eliminarse. Se desactivó en su lugar.');
+        }
+
+        $cupon->delete();
         return redirect()->route('admin.cupones.index')
             ->with('success', 'Cupón eliminado.');
     }

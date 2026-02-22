@@ -49,11 +49,12 @@ class AuthController extends Controller
             : 'cliente';
 
         $usuario = Usuario::create([
-            'nombre'   => $request->nombre,
-            'apellido' => $request->apellido,
-            'email'    => $request->email,
-            'password' => Hash::make($request->password),
-            'rol'      => $rol,
+            'nombre'          => $request->nombre,
+            'apellido'        => $request->apellido,
+            'email'           => $request->email,
+            'password'        => Hash::make($request->password),
+            'rol'             => $rol,
+            'fecha_registro'  => now(),
         ]);
 
         // Si un admin creó el usuario, no lo loguea — lo redirige al dashboard

@@ -72,7 +72,16 @@
                     <select name="id_talla" class="form-select" required>
                         <option value="">Selecciona una talla</option>
                         @foreach($tallas as $talla)
-                            <option value="{{ $talla->id_talla }}">{{ $talla->nombre }}</option>
+                            @php $stock = $stockPorTalla[$talla->id_talla] ?? 0; @endphp
+                            <option value="{{ $talla->id_talla }}"
+                                {{ $stock <= 0 ? 'disabled' : '' }}>
+                                {{ $talla->nombre }}
+                                @if($stock > 0)
+                                    ({{ $stock }} disp.)
+                                @else
+                                    (sin stock)
+                                @endif
+                            </option>
                         @endforeach
                     </select>
                 </div>

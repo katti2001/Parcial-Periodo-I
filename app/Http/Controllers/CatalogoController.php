@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Categoria;
+use App\Models\DetalleCompra;
 use App\Models\Equipo;
 use App\Models\Producto;
 use App\Models\Talla;
@@ -54,6 +55,13 @@ class CatalogoController extends Controller
 
         $tallas = Talla::orderBy('nombre')->get();
 
-        return view('catalogo.show', compact('producto', 'tallas'));
+        // Calcular stock disponible por talla para este producto
+        $stockPorTalla = DetalleCompra::where('id_producto', $id)
+            ->whereIn('id_talla', $tallas->pluck('id_talla'))
+            ->groupBy('id_talla')
+            ->selectRaw('id_talla, SUM(cantidad_restante) as total')
+            ->pluck('total', 'id_talla');
+
+        return view('catalogo.show', compact('producto', 'tallas', 'stockPorTalla'));
     }
 }
