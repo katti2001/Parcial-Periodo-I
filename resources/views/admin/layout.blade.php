@@ -50,6 +50,11 @@
                 <i class="bi bi-ticket-perforated me-2"></i>Cupones
             </a>
             <hr class="border-secondary my-2">
+            <a href="{{ route('almacen.dashboard') }}"
+               class="nav-link {{ request()->routeIs('almacen.*') ? 'active' : '' }}">
+                <i class="bi bi-box-seam me-2"></i>Almacén
+            </a>
+            <hr class="border-secondary my-2">
             <a href="{{ route('home') }}" class="nav-link">
                 <i class="bi bi-shop me-2"></i>Ver tienda
             </a>

@@ -13,8 +13,8 @@
                 @foreach($pedido->detalle_pedidos as $d)
                 <li class="list-group-item d-flex justify-content-between">
                     <div>
-                        <span class="fw-semibold">{{ $d->producto->nombre }}</span>
-                        <small class="text-muted ms-2">Talla: {{ $d->talla->nombre }} × {{ $d->cantidad }}</small>
+                        <span class="fw-semibold">{{ optional($d->producto)->nombre ?? '(producto eliminado)' }}</span>
+                        <small class="text-muted ms-2">Talla: {{ optional($d->talla)->nombre ?? '—' }} × {{ $d->cantidad }}</small>
                     </div>
                     <span>${{ number_format($d->precio_venta_unitario * $d->cantidad, 2) }}</span>
                 </li>

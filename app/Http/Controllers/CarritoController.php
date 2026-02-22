@@ -2,12 +2,24 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\DetalleCompra;
 use App\Models\Producto;
 use App\Models\Talla;
 use Illuminate\Http\Request;
 
 class CarritoController extends Controller
 {
+    /**
+     * Calcula el stock disponible de un producto en una talla específica.
+     * Stock = suma de cantidad_restante en detalle_compras.
+     */
+    private function stockDisponible(int $idProducto, int $idTalla): int
+    {
+        return (int) DetalleCompra::where('id_producto', $idProducto)
+            ->where('id_talla', $idTalla)
+            ->sum('cantidad_restante');
+    }
+
     /**
      * Mostrar el carrito.
      */
@@ -26,17 +38,33 @@ class CarritoController extends Controller
     {
         $request->validate([
             'id_talla'  => 'required|integer',
-            'cantidad'  => 'required|integer|min:1|max:10',
+            'cantidad'  => 'required|integer|min:1|max:5',
         ]);
 
         $producto = Producto::with('imagenes_productos')->where('activo', true)->findOrFail($id);
         $talla    = Talla::findOrFail($request->id_talla);
 
-        $carrito = session('carrito', []);
-        $clave   = $producto->id_producto . '_' . $talla->id_talla;
+        $carrito   = session('carrito', []);
+        $clave     = $producto->id_producto . '_' . $talla->id_talla;
+        $cantidadSolicitada = (int) $request->cantidad;
+        $cantidadEnCarrito  = isset($carrito[$clave]) ? $carrito[$clave]['cantidad'] : 0;
+        $cantidadTotal      = $cantidadEnCarrito + $cantidadSolicitada;
+
+        // Verificar stock disponible
+        $stock = $this->stockDisponible($producto->id_producto, $talla->id_talla);
+
+        if ($stock <= 0) {
+            return redirect()->back()
+                ->with('error', 'No hay stock disponible para la talla ' . $talla->nombre . '.');
+        }
+
+        if ($cantidadTotal > $stock) {
+            return redirect()->back()
+                ->with('error', "La cantidad de camisas sobrepasa la disponible. Solo hay {$stock} unidad(es) en stock para la talla {$talla->nombre}.");
+        }
 
         if (isset($carrito[$clave])) {
-            $carrito[$clave]['cantidad'] += (int) $request->cantidad;
+            $carrito[$clave]['cantidad'] = $cantidadTotal;
         } else {
             $carrito[$clave] = [
                 'id_producto' => $producto->id_producto,
@@ -44,7 +72,7 @@ class CarritoController extends Controller
                 'nombre'      => $producto->nombre,
                 'talla'       => $talla->nombre,
                 'precio'      => $producto->precio_venta_base,
-                'cantidad'    => (int) $request->cantidad,
+                'cantidad'    => $cantidadTotal,
                 'imagen'      => optional($producto->imagenes_productos->first())->url_imagen,
             ];
         }
@@ -60,12 +88,21 @@ class CarritoController extends Controller
      */
     public function actualizar(Request $request, $clave)
     {
-        $request->validate(['cantidad' => 'required|integer|min:1|max:10']);
+        $request->validate(['cantidad' => 'required|integer|min:1|max:5']);
 
         $carrito = session('carrito', []);
 
         if (isset($carrito[$clave])) {
-            $carrito[$clave]['cantidad'] = (int) $request->cantidad;
+            $item       = $carrito[$clave];
+            $nuevaCant  = (int) $request->cantidad;
+            $stock      = $this->stockDisponible($item['id_producto'], $item['id_talla']);
+
+            if ($nuevaCant > $stock) {
+                return redirect()->route('carrito.index')
+                    ->with('error', "Solo hay {$stock} unidad(es) disponibles en talla {$item['talla']}.");
+            }
+
+            $carrito[$clave]['cantidad'] = $nuevaCant;
             session(['carrito' => $carrito]);
         }
 
@@ -95,3 +132,4 @@ class CarritoController extends Controller
             ->with('success', 'Carrito vaciado.');
     }
 }
+

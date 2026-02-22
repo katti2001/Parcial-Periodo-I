@@ -3,10 +3,14 @@
 @section('header', 'Gestión de Productos')
 
 @section('content')
-<div class="d-flex justify-content-end mb-3">
-    <a href="{{ route('admin.productos.create') }}" class="btn btn-dark">
-        <i class="bi bi-plus-lg me-1"></i>Nuevo producto
-    </a>
+
+<div class="alert alert-info d-flex align-items-center gap-2 mb-3">
+    <i class="bi bi-info-circle-fill fs-5"></i>
+    <div>
+        El stock se gestiona desde
+        <a href="{{ route('almacen.compras.index') }}" class="alert-link">Almacén → Compras</a>.
+        Registra una compra y márcala como <strong>Recibida</strong> para que el stock esté disponible.
+    </div>
 </div>
 
 <div class="card border-0 shadow-sm">
@@ -19,7 +23,9 @@
                     <th>Categoría</th>
                     <th>Equipo</th>
                     <th>Precio</th>
-                    <th>Activo</th>
+                    <th class="text-center">Disponible</th>
+                    <th class="text-center">En camino</th>
+                    <th class="text-center">Activo</th>
                     <th></th>
                 </tr>
             </thead>
@@ -31,7 +37,21 @@
                     <td>{{ optional($p->categoria)->nombre ?? '—' }}</td>
                     <td>{{ optional($p->equipo)->nombre ?? '—' }}</td>
                     <td>${{ number_format($p->precio_venta_base, 2) }}</td>
-                    <td>
+                    <td class="text-center">
+                        @php $disp = $stockDisponible[$p->id_producto] ?? 0; @endphp
+                        <span class="badge {{ $disp > 0 ? 'bg-success' : 'bg-danger' }}">
+                            {{ $disp }}
+                        </span>
+                    </td>
+                    <td class="text-center">
+                        @php $camino = $stockEnCamino[$p->id_producto] ?? 0; @endphp
+                        @if($camino > 0)
+                            <span class="badge bg-warning text-dark">{{ $camino }}</span>
+                        @else
+                            <span class="text-muted small">—</span>
+                        @endif
+                    </td>
+                    <td class="text-center">
                         @if($p->activo)
                             <span class="badge bg-success">Sí</span>
                         @else
@@ -51,7 +71,7 @@
                     </td>
                 </tr>
                 @empty
-                <tr><td colspan="7" class="text-center text-muted py-4">No hay productos.</td></tr>
+                <tr><td colspan="9" class="text-center text-muted py-4">No hay productos.</td></tr>
                 @endforelse
             </tbody>
         </table>
@@ -62,4 +82,11 @@
     </div>
     @endif
 </div>
+
+<div class="d-flex gap-3 mt-3 small text-muted">
+    <span><span class="badge bg-success">N</span> Stock disponible (compra recibida)</span>
+    <span><span class="badge bg-warning text-dark">N</span> En camino (compra solicitada)</span>
+    <span><span class="badge bg-danger">0</span> Sin stock</span>
+</div>
 @endsection
+

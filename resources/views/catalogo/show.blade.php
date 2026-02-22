@@ -4,11 +4,31 @@
 
 @push('styles')
 <style>
-    .img-principal { max-height: 420px; object-fit: cover; width: 100%; border-radius: .5rem; }
     .precio-grande { font-size: 2rem; font-weight: 700; color: #198754; }
-    .thumbnail { width: 70px; height: 70px; object-fit: cover; cursor: pointer;
-                 border: 2px solid transparent; border-radius: .25rem; }
-    .thumbnail:hover, .thumbnail.active { border-color: #212529; }
+    /* Galería principal */
+    #carouselProducto .carousel-item img {
+        height: 420px;
+        object-fit: cover;
+        width: 100%;
+        border-radius: .5rem;
+    }
+    /* Tira de miniaturas */
+    .thumb-strip { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .75rem; }
+    .thumb-strip .thumbnail {
+        width: 70px; height: 70px; object-fit: cover;
+        cursor: pointer; border-radius: .375rem;
+        border: 2px solid transparent;
+        transition: border-color .15s, opacity .15s;
+        opacity: .7;
+    }
+    .thumb-strip .thumbnail:hover { opacity: 1; }
+    .thumb-strip .thumbnail.active { border-color: #212529; opacity: 1; }
+    /* Placeholder sin imagen */
+    .img-placeholder {
+        height: 420px; background: #f1f3f8; border-radius: .5rem;
+        display: flex; align-items: center; justify-content: center;
+        color: #adb5bd;
+    }
 </style>
 @endpush
 
@@ -26,18 +46,41 @@
     <div class="col-md-6">
         @php $imagenes = $producto->imagenes_productos; @endphp
         @if($imagenes->isNotEmpty())
-            <img id="imgPrincipal" src="{{ $imagenes->first()->url_imagen }}"
-                 alt="{{ $producto->nombre }}" class="img-principal mb-3">
+            {{-- Carrusel principal --}}
+            <div id="carouselProducto" class="carousel slide" data-bs-ride="false">
+                <div class="carousel-inner">
+                    @foreach($imagenes as $i => $img)
+                        <div class="carousel-item {{ $i === 0 ? 'active' : '' }}">
+                            <img src="{{ $img->url_imagen }}" alt="{{ $producto->nombre }}">
+                        </div>
+                    @endforeach
+                </div>
+                @if($imagenes->count() > 1)
+                    <button class="carousel-control-prev" type="button"
+                            data-bs-target="#carouselProducto" data-bs-slide="prev">
+                        <span class="carousel-control-prev-icon"></span>
+                    </button>
+                    <button class="carousel-control-next" type="button"
+                            data-bs-target="#carouselProducto" data-bs-slide="next">
+                        <span class="carousel-control-next-icon"></span>
+                    </button>
+                @endif
+            </div>
+
+            {{-- Tira de miniaturas --}}
             @if($imagenes->count() > 1)
-                <div class="d-flex gap-2 flex-wrap">
-                    @foreach($imagenes as $img)
-                        <img src="{{ $img->url_imagen }}" class="thumbnail {{ $loop->first ? 'active' : '' }}"
-                             onclick="cambiarImagen(this)" alt="">
+                <div class="thumb-strip">
+                    @foreach($imagenes as $i => $img)
+                        <img src="{{ $img->url_imagen }}"
+                             class="thumbnail {{ $i === 0 ? 'active' : '' }}"
+                             data-bs-target="#carouselProducto"
+                             data-bs-slide-to="{{ $i }}"
+                             alt="Imagen {{ $i + 1 }}">
                     @endforeach
                 </div>
             @endif
         @else
-            <div class="img-principal bg-secondary d-flex align-items-center justify-content-center text-white mb-3">
+            <div class="img-placeholder">
                 <i class="bi bi-image display-1"></i>
             </div>
         @endif
@@ -63,24 +106,36 @@
 
         <hr>
 
-        {{-- Botón agregar al carrito (habilitado en Phase 4) --}}
+        {{-- Agregar al carrito --}}
         @auth
-            <form method="POST" action="{{ route('carrito.agregar', $producto->id_producto) }}">
+            <form method="POST" action="{{ route('carrito.agregar', $producto->id_producto) }}" id="formCarrito">
                 @csrf
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Talla</label>
-                    <select name="id_talla" class="form-select" required>
+                    <select name="id_talla" id="selTalla" class="form-select" required>
                         <option value="">Selecciona una talla</option>
                         @foreach($tallas as $talla)
-                            <option value="{{ $talla->id_talla }}">{{ $talla->nombre }}</option>
+                            @php $stock = $stockPorTalla[$talla->id_talla] ?? 0; @endphp
+                            <option value="{{ $talla->id_talla }}"
+                                    data-stock="{{ $stock }}"
+                                    {{ $stock <= 0 ? 'disabled' : '' }}>
+                                {{ $talla->nombre }}
+                                @if($stock > 0)
+                                    ({{ $stock }} disp.)
+                                @else
+                                    (sin stock)
+                                @endif
+                            </option>
                         @endforeach
                     </select>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label fw-semibold">Cantidad</label>
-                    <input type="number" name="cantidad" class="form-control" value="1" min="1" max="10">
+                    <label class="form-label fw-semibold">Cantidad <span class="text-muted fw-normal small">(máx. 5)</span></label>
+                    <input type="number" name="cantidad" id="inputCantidad"
+                           class="form-control" value="1" min="1" max="5">
+                    <div id="msgCantidad" class="text-danger small mt-1 d-none"></div>
                 </div>
-                <button type="submit" class="btn btn-success btn-lg w-100">
+                <button type="submit" id="btnAgregar" class="btn btn-success btn-lg w-100">
                     <i class="bi bi-cart-plus me-2"></i>Agregar al carrito
                 </button>
             </form>
@@ -99,10 +154,72 @@
 
 @push('scripts')
 <script>
-    function cambiarImagen(el) {
-        document.getElementById('imgPrincipal').src = el.src;
-        document.querySelectorAll('.thumbnail').forEach(t => t.classList.remove('active'));
-        el.classList.add('active');
+    // ── Miniaturas sincronizan con el carrusel Bootstrap ────────────────────────
+    const carouselEl = document.getElementById('carouselProducto');
+    if (carouselEl) {
+        const bsCarousel = bootstrap.Carousel.getOrCreateInstance(carouselEl);
+
+        // Clic en miniatura → ir al slide correspondiente
+        document.querySelectorAll('.thumb-strip .thumbnail').forEach(thumb => {
+            thumb.addEventListener('click', () => {
+                bsCarousel.to(parseInt(thumb.dataset.bsSlideTo));
+            });
+        });
+
+        // Al cambiar slide → resaltar la miniatura correspondiente
+        carouselEl.addEventListener('slid.bs.carousel', e => {
+            document.querySelectorAll('.thumb-strip .thumbnail').forEach((t, i) => {
+                t.classList.toggle('active', i === e.to);
+            });
+        });
+    }
+
+    // ── Validación carrito ───────────────────────────────────────────────────────
+    const MAX_CARRITO = 5;
+    const selTalla     = document.getElementById('selTalla');
+    const inputCantidad = document.getElementById('inputCantidad');
+    const msgCantidad  = document.getElementById('msgCantidad');
+    const btnAgregar   = document.getElementById('btnAgregar');
+
+    function validarCantidad() {
+        const opt   = selTalla.options[selTalla.selectedIndex];
+        const stock = (opt && opt.value) ? parseInt(opt.dataset.stock || 0) : 0;
+        const maxPermitido = Math.min(stock, MAX_CARRITO);
+        const cantidad = parseInt(inputCantidad.value) || 0;
+
+        inputCantidad.max = maxPermitido > 0 ? maxPermitido : 1;
+
+        if (!opt || !opt.value || stock === 0) {
+            msgCantidad.classList.add('d-none');
+            btnAgregar.disabled = (!opt || !opt.value);
+            return;
+        }
+
+        if (cantidad > maxPermitido) {
+            let razon;
+            if (cantidad > MAX_CARRITO && cantidad > stock) {
+                razon = `Máximo permitido: ${MAX_CARRITO} por pedido y solo hay ${stock} en stock.`;
+            } else if (cantidad > stock) {
+                razon = `La cantidad de camisas sobrepasa la disponible. Máximo disponible: ${stock} unidades.`;
+            } else {
+                razon = `El máximo por pedido es ${MAX_CARRITO} unidades.`;
+            }
+            msgCantidad.textContent = razon;
+            msgCantidad.classList.remove('d-none');
+            btnAgregar.disabled = true;
+        } else {
+            msgCantidad.classList.add('d-none');
+            btnAgregar.disabled = false;
+        }
+    }
+
+    if (selTalla) {
+        selTalla.addEventListener('change', () => {
+            inputCantidad.value = 1;
+            validarCantidad();
+        });
+        inputCantidad.addEventListener('input', validarCantidad);
+        validarCantidad();
     }
 </script>
 @endpush

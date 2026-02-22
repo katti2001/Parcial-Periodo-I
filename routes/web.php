@@ -10,6 +10,9 @@ use App\Http\Controllers\Admin\PedidoController as AdminPedido;
 use App\Http\Controllers\Admin\CuponController as AdminCupon;
 use App\Http\Controllers\Admin\CategoriaController as AdminCategoria;
 use App\Http\Controllers\Admin\EquipoController as AdminEquipo;
+use App\Http\Controllers\Almacen\ProveedorController as AlmacenProveedor;
+use App\Http\Controllers\Almacen\CompraController as AlmacenCompra;
+use App\Http\Controllers\Almacen\KardexController as AlmacenKardex;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -61,10 +64,8 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard',                            [AdminDashboard::class, 'index'])->name('dashboard');
 
-    // Productos
+    // Productos (solo editar, desactivar y ver — crear es desde Almacén > Compras)
     Route::get('/productos',                            [AdminProducto::class, 'index'])->name('productos.index');
-    Route::get('/productos/crear',                      [AdminProducto::class, 'create'])->name('productos.create');
-    Route::post('/productos',                           [AdminProducto::class, 'store'])->name('productos.store');
     Route::get('/productos/{id}/editar',                [AdminProducto::class, 'edit'])->name('productos.edit');
     Route::put('/productos/{id}',                       [AdminProducto::class, 'update'])->name('productos.update');
     Route::delete('/productos/{id}',                    [AdminProducto::class, 'destroy'])->name('productos.destroy');
@@ -104,4 +105,22 @@ Route::middleware(['auth', 'almacen'])->prefix('almacen')->name('almacen.')->gro
     Route::get('/dashboard', function () {
         return view('dashboard.almacen');
     })->name('dashboard');
+
+    // Proveedores
+    Route::get('/proveedores',             [AlmacenProveedor::class, 'index'])->name('proveedores.index');
+    Route::get('/proveedores/crear',       [AlmacenProveedor::class, 'create'])->name('proveedores.create');
+    Route::post('/proveedores',            [AlmacenProveedor::class, 'store'])->name('proveedores.store');
+    Route::get('/proveedores/{id}/editar', [AlmacenProveedor::class, 'edit'])->name('proveedores.edit');
+    Route::put('/proveedores/{id}',        [AlmacenProveedor::class, 'update'])->name('proveedores.update');
+    Route::delete('/proveedores/{id}',     [AlmacenProveedor::class, 'destroy'])->name('proveedores.destroy');
+
+    // Compras
+    Route::get('/compras',                 [AlmacenCompra::class, 'index'])->name('compras.index');
+    Route::get('/compras/crear',           [AlmacenCompra::class, 'create'])->name('compras.create');
+    Route::post('/compras',                [AlmacenCompra::class, 'store'])->name('compras.store');
+    Route::get('/compras/{id}',            [AlmacenCompra::class, 'show'])->name('compras.show');
+    Route::patch('/compras/{id}/recibir',  [AlmacenCompra::class, 'recibirCompra'])->name('compras.recibir');
+
+    // Kardex
+    Route::get('/kardex',                  [AlmacenKardex::class, 'index'])->name('kardex.index');
 });

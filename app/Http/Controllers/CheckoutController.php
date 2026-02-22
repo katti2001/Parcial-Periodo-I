@@ -3,10 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Cupon;
+use App\Models\DetalleCompra;
 use App\Models\DetallePedido;
+use App\Models\Kardex;
 use App\Models\Pedido;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use PaypalServerSdkLib\Authentication\ClientCredentialsAuthCredentialsBuilder;
 use PaypalServerSdkLib\Environment;
@@ -23,12 +26,12 @@ class CheckoutController extends Controller
         return PaypalServerSdkClientBuilder::init()
             ->clientCredentialsAuthCredentials(
                 ClientCredentialsAuthCredentialsBuilder::init(
-                    env('PAYPAL_CLIENT_ID'),
-                    env('PAYPAL_CLIENT_SECRET')
+                    config('services.paypal.client_id'),
+                    config('services.paypal.client_secret')
                 )
             )
             ->environment(
-                env('PAYPAL_MODE', 'sandbox') === 'live'
+                config('services.paypal.mode', 'sandbox') === 'live'
                     ? Environment::PRODUCTION
                     : Environment::SANDBOX
             )
@@ -52,7 +55,6 @@ class CheckoutController extends Controller
         $monto_descuento = 0.0;
         $cupon           = null;
 
-        // Aplicar cupón si existe en sesión
         if (session('cupon_id')) {
             $cupon = Cupon::where('activo', true)->find(session('cupon_id'));
             if ($cupon) {
@@ -144,6 +146,8 @@ class CheckoutController extends Controller
 
     /**
      * Capturar el pago luego de aprobación en PayPal.
+     * Crea el pedido, decrementa el inventario (FIFO) y registra en kardex,
+     * todo dentro de una transacción atómica.
      */
     public function capturarOrden(Request $request, $orderID)
     {
@@ -175,39 +179,76 @@ class CheckoutController extends Controller
 
             $total = max(0, $subtotal - $monto_descuento + $costo_envio);
 
-            // Crear pedido en BD
-            $pedido = Pedido::create([
-                'id_usuario'      => Auth::id(),
-                'id_cupon'        => $cupon_id,
-                'subtotal'        => $subtotal,
-                'monto_descuento' => $monto_descuento,
-                'costo_envio'     => $costo_envio,
-                'total'           => $total,
-                'moneda'          => 'USD',
-                'estado_pago'     => 'pagado',
-                'paypal_order_id' => $orderID,
-                'paypal_payer_id' => $payerId,
-                'estado_pedido'   => 'pendiente',
-                'fecha_pedido'    => now(),
-            ]);
-
-            // Crear detalles
-            foreach ($carrito as $item) {
-                DetallePedido::create([
-                    'id_pedido'             => $pedido->id_pedido,
-                    'id_producto'           => $item['id_producto'],
-                    'id_talla'              => $item['id_talla'],
-                    'cantidad'              => $item['cantidad'],
-                    'precio_venta_unitario' => $item['precio'],
+            // Todo dentro de una transacción atómica
+            $pedidoId = DB::transaction(function () use (
+                $carrito, $subtotal, $costo_envio, $monto_descuento,
+                $cupon_id, $total, $orderID, $payerId
+            ) {
+                // 1. Crear pedido
+                $pedido = Pedido::create([
+                    'id_usuario'      => Auth::id(),
+                    'id_cupon'        => $cupon_id,
+                    'subtotal'        => $subtotal,
+                    'monto_descuento' => $monto_descuento,
+                    'costo_envio'     => $costo_envio,
+                    'total'           => $total,
+                    'moneda'          => 'USD',
+                    'estado_pago'     => 'pagado',
+                    'paypal_order_id' => $orderID,
+                    'paypal_payer_id' => $payerId,
+                    'estado_pedido'   => 'procesando',
+                    'fecha_pedido'    => now(),
                 ]);
-            }
+
+                // 2. Crear detalles y descontar inventario por ítem
+                foreach ($carrito as $item) {
+                    DetallePedido::create([
+                        'id_pedido'             => $pedido->id_pedido,
+                        'id_producto'           => $item['id_producto'],
+                        'id_talla'              => $item['id_talla'],
+                        'cantidad'              => $item['cantidad'],
+                        'precio_venta_unitario' => $item['precio'],
+                    ]);
+
+                    // Descontar cantidad_restante FIFO
+                    // (se consumen primero los lotes más antiguos)
+                    $porDescontar = $item['cantidad'];
+
+                    $lotes = DetalleCompra::where('id_producto', $item['id_producto'])
+                        ->where('id_talla', $item['id_talla'])
+                        ->where('cantidad_restante', '>', 0)
+                        ->orderBy('id_detalle_compra')
+                        ->lockForUpdate()
+                        ->get();
+
+                    foreach ($lotes as $lote) {
+                        if ($porDescontar <= 0) break;
+
+                        $descuento = min($lote->cantidad_restante, $porDescontar);
+                        $lote->decrement('cantidad_restante', $descuento);
+                        $porDescontar -= $descuento;
+                    }
+
+                    // 3. Registrar movimiento en kardex
+                    Kardex::create([
+                        'id_producto'     => $item['id_producto'],
+                        'id_talla'        => $item['id_talla'],
+                        'tipo_movimiento' => 'venta',
+                        'cantidad'        => $item['cantidad'],
+                        'fecha'           => now(),
+                        'referencia'      => 'Pedido #' . $pedido->id_pedido,
+                    ]);
+                }
+
+                return $pedido->id_pedido;
+            });
 
             // Limpiar sesión
             session()->forget(['carrito', 'cupon_id']);
 
             return response()->json([
                 'success'   => true,
-                'pedido_id' => $pedido->id_pedido,
+                'pedido_id' => $pedidoId,
             ]);
         } catch (\Exception $e) {
             Log::error('PayPal capturarOrden error: ' . $e->getMessage());
