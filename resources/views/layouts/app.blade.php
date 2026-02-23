@@ -9,7 +9,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     @stack('styles')
 </head>
-<body class="d-flex flex-column min-vh-100 bg-light">
+<body class="bg-light">
 
     {{-- Navbar --}}
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
@@ -99,12 +99,12 @@
     </div>
 
     {{-- Contenido principal --}}
-    <main class="container my-4 flex-grow-1">
+    <main class="container my-4">
         @yield('content')
     </main>
 
     {{-- Footer --}}
-    <footer class="bg-dark text-white text-center py-3 mt-auto">
+    <footer class="bg-dark text-white text-center py-3 mt-5">
         <small>&copy; {{ date('Y') }} Tienda Deportiva. Todos los derechos reservados.</small>
     </footer>
 
