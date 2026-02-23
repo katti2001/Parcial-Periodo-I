@@ -29,9 +29,6 @@
                     <span>Descuento</span><span>-${{ number_format($pedido->monto_descuento, 2) }}</span>
                 </div>
                 @endif
-                <div class="d-flex justify-content-between text-muted small">
-                    <span>Envío</span><span>${{ number_format($pedido->costo_envio, 2) }}</span>
-                </div>
                 <div class="d-flex justify-content-between fw-bold mt-1">
                     <span>Total</span><span>${{ number_format($pedido->total, 2) }} {{ $pedido->moneda }}</span>
                 </div>

@@ -51,7 +51,6 @@ class CheckoutController extends Controller
         }
 
         $subtotal        = collect($carrito)->sum(fn($i) => $i['precio'] * $i['cantidad']);
-        $costo_envio     = 5.00;
         $monto_descuento = 0.0;
         $cupon           = null;
 
@@ -64,10 +63,10 @@ class CheckoutController extends Controller
             }
         }
 
-        $total = max(0, $subtotal - $monto_descuento + $costo_envio);
+        $total = max(0, $subtotal - $monto_descuento);
 
         return view('checkout.index', compact(
-            'carrito', 'subtotal', 'costo_envio',
+            'carrito', 'subtotal',
             'monto_descuento', 'cupon', 'total'
         ));
     }
@@ -107,7 +106,6 @@ class CheckoutController extends Controller
         }
 
         $subtotal        = collect($carrito)->sum(fn($i) => $i['precio'] * $i['cantidad']);
-        $costo_envio     = 5.00;
         $monto_descuento = 0.0;
 
         if (session('cupon_id')) {
@@ -119,7 +117,7 @@ class CheckoutController extends Controller
             }
         }
 
-        $total = number_format(max(0, $subtotal - $monto_descuento + $costo_envio), 2, '.', '');
+        $total = number_format(max(0, $subtotal - $monto_descuento), 2, '.', '');
 
         try {
             $client = $this->paypalClient();
@@ -133,7 +131,7 @@ class CheckoutController extends Controller
                 ]
             )->build();
 
-            $response = $client->getOrdersController()->ordersCreate([
+            $response = $client->getOrdersController()->createOrder([
                 'body' => $orderRequest,
             ]);
 
@@ -153,7 +151,7 @@ class CheckoutController extends Controller
     {
         try {
             $client   = $this->paypalClient();
-            $response = $client->getOrdersController()->ordersCapture([
+            $response = $client->getOrdersController()->captureOrder([
                 'id' => $orderID,
             ]);
 
@@ -163,7 +161,6 @@ class CheckoutController extends Controller
             // Calcular totales
             $carrito         = session('carrito', []);
             $subtotal        = collect($carrito)->sum(fn($i) => $i['precio'] * $i['cantidad']);
-            $costo_envio     = 5.00;
             $monto_descuento = 0.0;
             $cupon_id        = null;
 
@@ -177,11 +174,11 @@ class CheckoutController extends Controller
                 }
             }
 
-            $total = max(0, $subtotal - $monto_descuento + $costo_envio);
+            $total = max(0, $subtotal - $monto_descuento);
 
             // Todo dentro de una transacción atómica
             $pedidoId = DB::transaction(function () use (
-                $carrito, $subtotal, $costo_envio, $monto_descuento,
+                $carrito, $subtotal, $monto_descuento,
                 $cupon_id, $total, $orderID, $payerId
             ) {
                 // 1. Crear pedido
@@ -190,7 +187,7 @@ class CheckoutController extends Controller
                     'id_cupon'        => $cupon_id,
                     'subtotal'        => $subtotal,
                     'monto_descuento' => $monto_descuento,
-                    'costo_envio'     => $costo_envio,
+                    'costo_envio'     => 0,
                     'total'           => $total,
                     'moneda'          => 'USD',
                     'estado_pago'     => 'pagado',
