@@ -98,14 +98,10 @@
                         <span>Subtotal</span>
                         <span>${{ number_format($total, 2) }}</span>
                     </div>
-                    <div class="d-flex justify-content-between mb-2 text-muted small">
-                        <span>Envío</span>
-                        <span>$5.00</span>
-                    </div>
                     <hr>
                     <div class="d-flex justify-content-between fw-bold fs-5">
                         <span>Total estimado</span>
-                        <span>${{ number_format($total + 5, 2) }}</span>
+                        <span>${{ number_format($total, 2) }}</span>
                     </div>
                     <a href="{{ route('checkout.index') }}" class="btn btn-success w-100 mt-3 btn-lg">
                         <i class="bi bi-lock me-2"></i>Proceder al pago

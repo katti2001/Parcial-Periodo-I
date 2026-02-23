@@ -69,10 +69,6 @@
                     <span>-${{ number_format($monto_descuento, 2) }}</span>
                 </div>
                 @endif
-                <div class="d-flex justify-content-between mb-2 text-muted">
-                    <span>Envío</span>
-                    <span>${{ number_format($costo_envio, 2) }}</span>
-                </div>
                 <hr>
                 <div class="d-flex justify-content-between fw-bold fs-5 mb-4">
                     <span>Total</span>
@@ -89,35 +85,50 @@
 @endsection
 
 @push('scripts')
-<script src="https://www.paypal.com/sdk/js?client-id={{ env('PAYPAL_CLIENT_ID') }}&currency=USD"></script>
+<script src="https://www.paypal.com/sdk/js?client-id={{ config('services.paypal.client_id') }}&currency=USD&disable-funding=card,credit,venmo,paylater&enable-funding=paypal"></script>
 <script>
     paypal.Buttons({
+        style: {
+            label: 'pay',
+        },
         createOrder: function() {
             return fetch('{{ route('checkout.crear-orden') }}', {
                 method: 'POST',
+                credentials: 'same-origin',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                 },
             })
-            .then(res => res.json())
-            .then(data => {
+            .then(function(res) {
+                if (!res.ok) {
+                    return res.text().then(function(t) { throw new Error('Server error ' + res.status + ': ' + t.substring(0, 200)); });
+                }
+                return res.json();
+            })
+            .then(function(data) {
                 if (data.error) throw new Error(data.error);
                 return data.id;
             });
         },
         onApprove: function(data) {
-            return fetch(`{{ url('checkout/capturar') }}/${data.orderID}`, {
+            return fetch('{{ url('checkout/capturar') }}/' + data.orderID, {
                 method: 'POST',
+                credentials: 'same-origin',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                 },
             })
-            .then(res => res.json())
-            .then(result => {
+            .then(function(res) {
+                if (!res.ok) {
+                    return res.text().then(function(t) { throw new Error('Server error ' + res.status + ': ' + t.substring(0, 200)); });
+                }
+                return res.json();
+            })
+            .then(function(result) {
                 if (result.success) {
-                    window.location.href = `{{ url('checkout/confirmacion') }}/${result.pedido_id}`;
+                    window.location.href = '{{ url('checkout/confirmacion') }}/' + result.pedido_id;
                 } else {
                     document.getElementById('paypal-error').textContent = result.error || 'Error al procesar pago.';
                     document.getElementById('paypal-error').classList.remove('d-none');
