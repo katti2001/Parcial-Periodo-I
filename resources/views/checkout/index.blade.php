@@ -85,9 +85,12 @@
 @endsection
 
 @push('scripts')
-<script src="https://www.paypal.com/sdk/js?client-id={{ config('services.paypal.client_id') }}&currency=USD"></script>
+<script src="https://www.paypal.com/sdk/js?client-id={{ config('services.paypal.client_id') }}&currency=USD&disable-funding=card,credit,venmo,paylater&enable-funding=paypal"></script>
 <script>
     paypal.Buttons({
+        style: {
+            label: 'pay',
+        },
         createOrder: function() {
             return fetch('{{ route('checkout.crear-orden') }}', {
                 method: 'POST',
