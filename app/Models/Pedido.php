@@ -78,4 +78,9 @@ class Pedido extends Model
 	{
 		return $this->hasMany(DetallePedido::class, 'id_pedido');
 	}
+
+	public function devolucion()
+	{
+		return $this->hasOne(Devolucion::class, 'id_pedido');
+	}
 }
