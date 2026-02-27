@@ -3,6 +3,55 @@
 @section('header', 'Gestión de Pedidos')
 
 @section('content')
+
+{{-- Filtros --}}
+<form method="GET" action="{{ route('admin.pedidos.index') }}" class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-12 col-md-3">
+                <label class="form-label small fw-semibold mb-1">Buscar cliente</label>
+                <input type="text" name="cliente" value="{{ request('cliente') }}" placeholder="Nombre o email..." class="form-control form-control-sm">
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label small fw-semibold mb-1">Estado pedido</label>
+                <select name="estado_pedido" class="form-select form-select-sm">
+                    <option value="">Todos</option>
+                    @foreach(['pendiente','procesando','enviado','entregado','cancelado'] as $est)
+                        <option value="{{ $est }}" {{ request('estado_pedido') === $est ? 'selected' : '' }}>
+                            {{ ucfirst($est) }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label small fw-semibold mb-1">Estado pago</label>
+                <select name="estado_pago" class="form-select form-select-sm">
+                    <option value="">Todos</option>
+                    <option value="pagado"   {{ request('estado_pago') === 'pagado'   ? 'selected' : '' }}>Pagado</option>
+                    <option value="pendiente"{{ request('estado_pago') === 'pendiente' ? 'selected' : '' }}>Pendiente</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small fw-semibold mb-1">Desde</label>
+                <input type="date" name="fecha_desde" value="{{ request('fecha_desde') }}" class="form-control form-control-sm">
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small fw-semibold mb-1">Hasta</label>
+                <input type="date" name="fecha_hasta" value="{{ request('fecha_hasta') }}" class="form-control form-control-sm">
+            </div>
+            <div class="col-12 col-md-auto d-flex gap-2 ms-md-auto">
+                <button type="submit" class="btn btn-primary btn-sm px-3">
+                    <i class="bi bi-search me-1"></i>Filtrar
+                </button>
+                @if(request()->hasAny(['cliente','estado_pedido','estado_pago','fecha_desde','fecha_hasta']))
+                    <a href="{{ route('admin.pedidos.index') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-x-lg"></i>
+                    </a>
+                @endif
+            </div>
+        </div>
+    </div>
+</form>
 <div class="card border-0 shadow-sm">
     <div class="card-body p-0">
         <table class="table table-hover align-middle mb-0">

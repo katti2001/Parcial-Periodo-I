@@ -6,15 +6,35 @@ use App\Http\Controllers\Controller;
 use App\Models\DetalleCompra;
 use App\Models\Kardex;
 use App\Models\Pedido;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class PedidoController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $pedidos = Pedido::with('usuario')
+            ->when($request->filled('estado_pedido'), fn($q) =>
+                $q->where('estado_pedido', $request->estado_pedido)
+            )
+            ->when($request->filled('estado_pago'), fn($q) =>
+                $q->where('estado_pago', $request->estado_pago)
+            )
+            ->when($request->filled('fecha_desde'), fn($q) =>
+                $q->whereDate('fecha_pedido', '>=', $request->fecha_desde)
+            )
+            ->when($request->filled('fecha_hasta'), fn($q) =>
+                $q->whereDate('fecha_pedido', '<=', $request->fecha_hasta)
+            )
+            ->when($request->filled('cliente'), fn($q) =>
+                $q->whereHas('usuario', fn($u) =>
+                    $u->where(DB::raw("CONCAT(nombre, ' ', apellido)"), 'like', '%' . $request->cliente . '%')
+                      ->orWhere('email', 'like', '%' . $request->cliente . '%')
+                )
+            )
             ->orderByDesc('fecha_pedido')
-            ->paginate(20);
+            ->paginate(20)
+            ->withQueryString();
 
         return view('admin.pedidos.index', compact('pedidos'));
     }

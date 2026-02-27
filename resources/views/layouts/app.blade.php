@@ -45,6 +45,12 @@
                                 @endif
                             </a>
                         </li>
+                        {{-- Mis Pedidos --}}
+                        <li class="nav-item me-1">
+                            <a class="nav-link" href="{{ route('pedidos.historial') }}">
+                                <i class="bi bi-bag-heart me-1"></i>Mis Pedidos
+                            </a>
+                        </li>
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                                 <i class="bi bi-person-circle"></i>

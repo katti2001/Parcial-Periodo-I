@@ -45,6 +45,10 @@
                class="nav-link {{ request()->routeIs('admin.pedidos*') ? 'active' : '' }}">
                 <i class="bi bi-bag me-2"></i>Pedidos
             </a>
+            <a href="{{ route('admin.devoluciones.index') }}"
+               class="nav-link {{ request()->routeIs('admin.devoluciones*') ? 'active' : '' }}">
+                <i class="bi bi-arrow-counterclockwise me-2"></i>Devoluciones
+            </a>
             <a href="{{ route('admin.cupones.index') }}"
                class="nav-link {{ request()->routeIs('admin.cupones*') ? 'active' : '' }}">
                 <i class="bi bi-ticket-perforated me-2"></i>Cupones

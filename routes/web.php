@@ -4,12 +4,14 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CarritoController;
 use App\Http\Controllers\CatalogoController;
 use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\DevolucionController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboard;
 use App\Http\Controllers\Admin\ProductoController as AdminProducto;
 use App\Http\Controllers\Admin\PedidoController as AdminPedido;
 use App\Http\Controllers\Admin\CuponController as AdminCupon;
 use App\Http\Controllers\Admin\CategoriaController as AdminCategoria;
 use App\Http\Controllers\Admin\EquipoController as AdminEquipo;
+use App\Http\Controllers\Admin\DevolucionController as AdminDevolucion;
 use App\Http\Controllers\Almacen\ProveedorController as AlmacenProveedor;
 use App\Http\Controllers\Almacen\CompraController as AlmacenCompra;
 use App\Http\Controllers\Almacen\KardexController as AlmacenKardex;
@@ -58,6 +60,15 @@ Route::middleware('auth')->group(function () {
     Route::post('/checkout/crear-orden',            [CheckoutController::class, 'crearOrden'])->name('checkout.crear-orden');
     Route::post('/checkout/capturar/{orderID}',     [CheckoutController::class, 'capturarOrden'])->name('checkout.capturar');
     Route::get('/checkout/confirmacion/{id}',       [CheckoutController::class, 'confirmacion'])->name('checkout.confirmacion');
+
+    // ─── Historial de pedidos del cliente ─────────────────────────────────────
+    Route::get('/mis-pedidos',                          [DevolucionController::class, 'index'])->name('pedidos.historial');
+    Route::get('/mis-pedidos/{id}',                     [DevolucionController::class, 'show'])->name('pedidos.show');
+
+    // ─── Devoluciones del cliente ─────────────────────────────────────────────
+    Route::get('/devoluciones/{id_pedido}/crear',       [DevolucionController::class, 'create'])->name('devoluciones.create');
+    Route::post('/devoluciones',                        [DevolucionController::class, 'store'])->name('devoluciones.store');
+    Route::get('/devoluciones/{id}',                    [DevolucionController::class, 'showDevolucion'])->name('devoluciones.show');
 });
 
 // ─── Panel Admin ──────────────────────────────────────────────────────────────
@@ -74,6 +85,12 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/pedidos',                              [AdminPedido::class, 'index'])->name('pedidos.index');
     Route::get('/pedidos/{id}',                         [AdminPedido::class, 'show'])->name('pedidos.show');
     Route::patch('/pedidos/{id}/estado/{estado}',       [AdminPedido::class, 'actualizarEstado'])->name('pedidos.estado');
+
+    // Devoluciones
+    Route::get('/devoluciones',                         [AdminDevolucion::class, 'index'])->name('devoluciones.index');
+    Route::get('/devoluciones/{id}',                    [AdminDevolucion::class, 'show'])->name('devoluciones.show');
+    Route::patch('/devoluciones/{id}/aprobar',          [AdminDevolucion::class, 'aprobar'])->name('devoluciones.aprobar');
+    Route::patch('/devoluciones/{id}/rechazar',         [AdminDevolucion::class, 'rechazar'])->name('devoluciones.rechazar');
 
     // Cupones
     Route::get('/cupones',                              [AdminCupon::class, 'index'])->name('cupones.index');
