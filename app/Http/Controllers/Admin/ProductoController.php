@@ -14,11 +14,30 @@ use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 
 class ProductoController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $categorias = Categoria::orderBy('nombre')->get();
+        $equipos    = Equipo::orderBy('nombre')->get();
+
         $productos = Producto::with(['categoria', 'equipo', 'imagenes_productos'])
+            ->when($request->filled('search'), fn($q) =>
+                $q->where(function ($q2) use ($request) {
+                    $q2->where('nombre', 'like', '%' . $request->search . '%')
+                       ->orWhere('sku_base', 'like', '%' . $request->search . '%');
+                })
+            )
+            ->when($request->filled('id_categoria'), fn($q) =>
+                $q->where('id_categoria', $request->id_categoria)
+            )
+            ->when($request->filled('id_equipo'), fn($q) =>
+                $q->where('id_equipo', $request->id_equipo)
+            )
+            ->when($request->filled('activo'), fn($q) =>
+                $q->where('activo', $request->activo)
+            )
             ->orderBy('nombre')
-            ->paginate(15);
+            ->paginate(15)
+            ->withQueryString();
 
         // Stock disponible: compras ya recibidas (cantidad_restante no consumida)
         $stockDisponible = DetalleCompra::select('dc.id_producto', DB::raw('SUM(dc.cantidad_restante) as total'))
@@ -36,7 +55,7 @@ class ProductoController extends Controller
             ->groupBy('dc.id_producto')
             ->pluck('total', 'dc.id_producto');
 
-        return view('admin.productos.index', compact('productos', 'stockDisponible', 'stockEnCamino'));
+        return view('admin.productos.index', compact('productos', 'stockDisponible', 'stockEnCamino', 'categorias', 'equipos'));
     }
 
     public function create()

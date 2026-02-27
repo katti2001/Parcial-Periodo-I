@@ -25,7 +25,7 @@
                     <i class="bi bi-bag-check"></i>
                 </div>
                 <div>
-                    <div class="text-muted small">Pedidos totales</div>
+                    <div class="text-muted small">Pedidos Completados</div>
                     <div class="fs-4 fw-bold">{{ $stats['pedidos'] }}</div>
                 </div>
             </div>

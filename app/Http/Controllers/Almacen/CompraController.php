@@ -18,13 +18,31 @@ use Illuminate\Support\Facades\DB;
 
 class CompraController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $compras = Compra::with('proveedor')
-            ->orderByDesc('id_compra')
-            ->paginate(15);
+        $proveedores = Proveedor::orderBy('nombre_empresa')->get();
 
-        return view('almacen.compras.index', compact('compras'));
+        $compras = Compra::with('proveedor')
+            ->when($request->filled('estado'), fn($q) =>
+                $q->where('estado', $request->estado)
+            )
+            ->when($request->filled('id_proveedor'), fn($q) =>
+                $q->where('id_proveedor', $request->id_proveedor)
+            )
+            ->when($request->filled('fecha_desde'), fn($q) =>
+                $q->whereDate('fecha_compra', '>=', $request->fecha_desde)
+            )
+            ->when($request->filled('fecha_hasta'), fn($q) =>
+                $q->whereDate('fecha_compra', '<=', $request->fecha_hasta)
+            )
+            ->when($request->filled('factura'), fn($q) =>
+                $q->where('numero_factura_proveedor', 'like', '%' . $request->factura . '%')
+            )
+            ->orderByDesc('id_compra')
+            ->paginate(15)
+            ->withQueryString();
+
+        return view('almacen.compras.index', compact('compras', 'proveedores'));
     }
 
     public function create()

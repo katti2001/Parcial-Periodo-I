@@ -25,6 +25,56 @@
 
 @section('content')
 
+{{-- Filtros --}}
+<form method="GET" action="{{ route('almacen.compras.index') }}" class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-12 col-md-3">
+                <label class="form-label small fw-semibold mb-1">Estado</label>
+                <select name="estado" class="form-select form-select-sm">
+                    <option value="">Todos</option>
+                    <option value="solicitado" {{ request('estado') === 'solicitado' ? 'selected' : '' }}>Solicitado</option>
+                    <option value="recibido"   {{ request('estado') === 'recibido'   ? 'selected' : '' }}>Recibido</option>
+                    <option value="cancelado"  {{ request('estado') === 'cancelado'  ? 'selected' : '' }}>Cancelado</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label small fw-semibold mb-1">Proveedor</label>
+                <select name="id_proveedor" class="form-select form-select-sm">
+                    <option value="">Todos</option>
+                    @foreach($proveedores as $prov)
+                        <option value="{{ $prov->id_proveedor }}" {{ request('id_proveedor') == $prov->id_proveedor ? 'selected' : '' }}>
+                            {{ $prov->nombre_empresa }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small fw-semibold mb-1">Desde</label>
+                <input type="date" name="fecha_desde" value="{{ request('fecha_desde') }}" class="form-control form-control-sm">
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small fw-semibold mb-1">Hasta</label>
+                <input type="date" name="fecha_hasta" value="{{ request('fecha_hasta') }}" class="form-control form-control-sm">
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label small fw-semibold mb-1">Nº Factura</label>
+                <input type="text" name="factura" value="{{ request('factura') }}" placeholder="Buscar..." class="form-control form-control-sm">
+            </div>
+            <div class="col-12 col-md-auto d-flex gap-2 ms-md-auto">
+                <button type="submit" class="btn btn-primary btn-sm px-3">
+                    <i class="bi bi-search me-1"></i>Filtrar
+                </button>
+                @if(request()->hasAny(['estado','id_proveedor','fecha_desde','fecha_hasta','factura']))
+                    <a href="{{ route('almacen.compras.index') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-x-lg"></i>
+                    </a>
+                @endif
+            </div>
+        </div>
+    </div>
+</form>
+
 {{-- Estadísticas rápidas --}}
 @php
     $total      = $compras->total();

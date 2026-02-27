@@ -15,10 +15,12 @@ class DashboardController extends Controller
     {
         $stats = [
             'productos'  => Producto::where('activo', true)->count(),
-            'pedidos'    => Pedido::count(),
+            'pedidos'    => Pedido::where('estado_pedido', '!=', 'cancelado')->count(),
             'usuarios'   => Usuario::where('rol', 'cliente')->count(),
             'categorias' => Categoria::count(),
-            'ingresos'   => Pedido::where('estado_pago', 'pagado')->sum('total'),
+            'ingresos'   => Pedido::where('estado_pago', 'pagado')
+                                ->where('estado_pedido', '!=', 'cancelado')
+                                ->sum('total'),
         ];
 
         $pedidos_recientes = Pedido::with('usuario')
