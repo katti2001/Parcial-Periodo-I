@@ -31,7 +31,7 @@ class AsistenteCatalogoController extends Controller
             ->groupBy('dc.id_producto')
             ->pluck('total', 'dc.id_producto');
 
-        // ── 3. Tallas disponibles por producto ────────────────────────────────
+        // ── 3. Tallas disponibles por producto (con id numérico) ──────────────
         $tallasMap = DetalleCompra::select(
                 'dc.id_producto',
                 'dc.id_talla',
@@ -51,8 +51,12 @@ class AsistenteCatalogoController extends Controller
         $catalogo = $productos->map(function ($p) use ($stockMap, $tallasMap, $todasTallas) {
             $stockTotal = (int) ($stockMap[$p->id_producto] ?? 0);
 
+            // Tallas como objetos {id, nombre} para que Gemini pueda usar el id
             $tallasDisp = collect($tallasMap[$p->id_producto] ?? [])
-                ->map(fn($t) => $todasTallas[$t->id_talla] ?? '?')
+                ->map(fn($t) => [
+                    'id'     => (int) $t->id_talla,
+                    'nombre' => $todasTallas[$t->id_talla] ?? '?',
+                ])
                 ->values()
                 ->toArray();
 
@@ -75,21 +79,23 @@ class AsistenteCatalogoController extends Controller
 Eres un asistente de compras de una tienda deportiva en línea.
 Ayudas a los clientes a encontrar productos, verificar stock y agregar al carrito.
 
-Catálogo actual con stock y tallas disponibles:
+Catálogo actual (cada talla tiene "id" numérico y "nombre"):
 {$catalogoJson}
 
 Reglas:
 1. Cuando el cliente pida un producto, búscalo de forma flexible (por nombre, categoría, equipo).
 2. Muestra precio, tallas disponibles y si hay o no stock.
-3. Si el cliente dice que lo quiere o pide agregarlo al carrito, responde con acción estructurada.
-4. Sugiere siempre 1 o 2 productos similares (misma categoría o equipo) aunque haya encontrado el producto.
+3. Si el cliente pide agregar al carrito:
+   - Si NO especificó talla, pregúntale qué talla desea (lista las disponibles).
+   - Si SÍ especificó talla o hay una sola talla disponible, incluye la acción de carrito.
+4. Sugiere siempre 1 o 2 productos similares (misma categoría o equipo).
 5. Si no hay stock, dilo claramente y ofrece las alternativas.
 6. Responde en español, de forma breve, amigable y directa.
-7. Si hay acción de agregar al carrito, incluye AL FINAL EXACTAMENTE este bloque (sin markdown):
+7. Cuando puedas agregar al carrito (talla definida), incluye AL FINAL EXACTAMENTE este bloque (sin markdown, en una sola línea):
 
-ACCION_JSON:{"accion":"ver_producto","id_producto":<id>,"nombre":"<nombre>","url":"<url>","similares":[{"id":<id>,"nombre":"<nombre>","precio":<precio>,"stock":<stock>,"url":"<url>"}]}
+ACCION_JSON:{"accion":"agregar_carrito","id_producto":<id>,"id_talla":<id_talla>,"nombre":"<nombre>","talla":"<nombre_talla>","cantidad":1,"url":"<url>","similares":[{"id":<id>,"nombre":"<nombre>","precio":<precio>,"stock":<stock>,"url":"<url>"}]}
 
-Si no hay acción, no incluyas el bloque ACCION_JSON.
+Si no puedes agregar (falta talla, sin stock, etc.), NO incluyas el bloque ACCION_JSON.
 PROMPT;
 
         // ── 6. Llamar a Gemini via cURL nativo ───────────────────────────────

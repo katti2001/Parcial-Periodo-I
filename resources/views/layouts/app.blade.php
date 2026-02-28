@@ -38,12 +38,10 @@
                             <a class="nav-link position-relative" href="{{ route('carrito.index') }}">
                                 <i class="bi bi-cart3"></i>
                                 @php $totalItems = collect(session('carrito', []))->sum('cantidad'); @endphp
-                                @if($totalItems > 0)
-                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                                        {{ $totalItems }}
-                                    </span>
-                                @endif
-                            </a>
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger carrito-badge"
+                                      style="{{ $totalItems > 0 ? '' : 'display:none;' }}">
+                                    {{ $totalItems ?: '' }}
+                                </span>
                         </li>
                         {{-- Mis Pedidos --}}
                         <li class="nav-item me-1">
@@ -241,9 +239,58 @@
             burbuja.innerHTML = texto.replace(/\n/g, '<br>');
             wrap.appendChild(burbuja);
 
-            // Botón "Ver producto" si hay acción
-            if (accion && accion.accion === 'ver_producto') {
-                // Botón principal
+            if (accion && accion.accion === 'agregar_carrito') {
+                // ── Botón "Agregar al carrito" que llama al endpoint JSON ────
+                const btnAdd = document.createElement('button');
+                btnAdd.innerHTML = '<i class="bi bi-cart-plus me-1"></i>Agregar al carrito';
+                btnAdd.style.cssText = 'margin-top:6px;font-size:.78rem;padding:5px 12px;border-radius:6px;border:none;background:linear-gradient(135deg,#16a34a,#0ea5e9);color:#fff;cursor:pointer;display:inline-block;';
+                btnAdd.addEventListener('click', async () => {
+                    btnAdd.disabled = true;
+                    btnAdd.textContent = 'Agregando...';
+                    try {
+                        const r = await fetch(`/carrito/${accion.id_producto}/asistente`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': csrfToken,
+                                'Accept': 'application/json',
+                            },
+                            body: JSON.stringify({ id_talla: accion.id_talla, cantidad: accion.cantidad || 1 }),
+                        });
+                        const d = await r.json();
+                        if (d.ok) {
+                            btnAdd.textContent = '✓ Agregado';
+                            btnAdd.style.background = '#15803d';
+                            // Actualizar badge del carrito en navbar
+                            const badge = document.querySelector('.carrito-badge');
+                            if (badge && d.total_items !== undefined) {
+                                badge.textContent = d.total_items;
+                                badge.style.display = d.total_items > 0 ? "" : "none";
+                            }
+                            agregarMensaje(d.mensaje, 'bot');
+                        } else {
+                            btnAdd.disabled = false;
+                            btnAdd.innerHTML = '<i class="bi bi-cart-plus me-1"></i>Agregar al carrito';
+                            agregarMensaje('⚠️ ' + d.mensaje, 'bot');
+                        }
+                    } catch (err) {
+                        btnAdd.disabled = false;
+                        btnAdd.innerHTML = '<i class="bi bi-cart-plus me-1"></i>Agregar al carrito';
+                        agregarMensaje('⚠️ Error de red al agregar. Intenta de nuevo.', 'bot');
+                    }
+                });
+                wrap.appendChild(btnAdd);
+
+                // Enlace "Ver producto" secundario
+                if (accion.url) {
+                    const btnVer = document.createElement('a');
+                    btnVer.href = accion.url;
+                    btnVer.innerHTML = '<i class="bi bi-eye me-1"></i>Ver producto';
+                    btnVer.style.cssText = 'margin-top:4px;margin-left:6px;font-size:.75rem;padding:4px 10px;border-radius:6px;border:1px solid #6366f1;background:transparent;color:#6366f1;text-decoration:none;display:inline-block;';
+                    wrap.appendChild(btnVer);
+                }
+            } else if (accion && accion.accion === 'ver_producto') {
+                // Acción legacy: solo enlace al producto
                 if (accion.url) {
                     const btnVer = document.createElement('a');
                     btnVer.href = accion.url;
@@ -251,36 +298,37 @@
                     btnVer.style.cssText = 'margin-top:6px;font-size:.78rem;padding:5px 12px;border-radius:6px;border:none;background:linear-gradient(135deg,#0ea5e9,#6366f1);color:#fff;cursor:pointer;display:inline-block;text-decoration:none;';
                     wrap.appendChild(btnVer);
                 }
+            }
 
-                // Similares
-                if (accion.similares && accion.similares.length > 0) {
-                    const label = document.createElement('div');
-                    label.textContent = 'También te puede interesar:';
-                    label.style.cssText = 'font-size:.72rem;color:#6b7280;margin-top:8px;';
-                    wrap.appendChild(label);
+            // ── Productos similares (para ambas acciones) ─────────────────────
+            if (accion && accion.similares && accion.similares.length > 0) {
+                const label = document.createElement('div');
+                label.textContent = 'También te puede interesar:';
+                label.style.cssText = 'font-size:.72rem;color:#6b7280;margin-top:8px;';
+                wrap.appendChild(label);
 
-                    const simWrap = document.createElement('div');
-                    simWrap.style.cssText = 'margin-top:4px;display:flex;flex-direction:column;gap:5px;';
+                const simWrap = document.createElement('div');
+                simWrap.style.cssText = 'margin-top:4px;display:flex;flex-direction:column;gap:5px;';
 
-                    accion.similares.forEach(s => {
-                        const chip = document.createElement('a');
-                        chip.href = s.url || '#';
-                        const stockBadge = s.stock > 0
-                            ? `<span style="color:#16a34a;font-size:.7rem;">● ${s.stock} en stock</span>`
-                            : `<span style="color:#dc2626;font-size:.7rem;">● Sin stock</span>`;
-                        chip.innerHTML = `<i class="bi bi-bag me-1"></i><strong>${s.nombre}</strong> — $${parseFloat(s.precio).toFixed(2)} &nbsp;${stockBadge}`;
-                        chip.style.cssText = 'font-size:.78rem;padding:5px 10px;border-radius:8px;border:1px solid #e0e7ff;background:#f0f5ff;color:#3730a3;text-decoration:none;display:block;transition:background .15s;';
-                        chip.addEventListener('mouseenter', () => chip.style.background = '#e0e7ff');
-                        chip.addEventListener('mouseleave', () => chip.style.background = '#f0f5ff');
-                        simWrap.appendChild(chip);
-                    });
-                    wrap.appendChild(simWrap);
-                }
+                accion.similares.forEach(s => {
+                    const chip = document.createElement('a');
+                    chip.href = s.url || '#';
+                    const stockBadge = s.stock > 0
+                        ? `<span style="color:#16a34a;font-size:.7rem;">● ${s.stock} en stock</span>`
+                        : `<span style="color:#dc2626;font-size:.7rem;">● Sin stock</span>`;
+                    chip.innerHTML = `<i class="bi bi-bag me-1"></i><strong>${s.nombre}</strong> — $${parseFloat(s.precio).toFixed(2)} &nbsp;${stockBadge}`;
+                    chip.style.cssText = 'font-size:.78rem;padding:5px 10px;border-radius:8px;border:1px solid #e0e7ff;background:#f0f5ff;color:#3730a3;text-decoration:none;display:block;transition:background .15s;';
+                    chip.addEventListener('mouseenter', () => chip.style.background = '#e0e7ff');
+                    chip.addEventListener('mouseleave', () => chip.style.background = '#f0f5ff');
+                    simWrap.appendChild(chip);
+                });
+                wrap.appendChild(simWrap);
             }
 
             mensajes.appendChild(wrap);
             mensajes.scrollTop = mensajes.scrollHeight;
         }
+
 
         // ── Typing indicator ─────────────────────────────────────────────────
         function mostrarTyping() {

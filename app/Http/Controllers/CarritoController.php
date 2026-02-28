@@ -133,3 +133,63 @@ class CarritoController extends Controller
     }
 }
 
+    /**
+     * Agregar al carrito desde el asistente IA (responde JSON).
+     */
+    public function agregarDesdeAsistente(Request $request, $id)
+    {
+        $request->validate([
+            'id_talla'  => 'required|integer',
+            'cantidad'  => 'required|integer|min:1|max:5',
+        ]);
+
+        $producto = Producto::with('imagenes_productos')->where('activo', true)->find($id);
+        if (!$producto) {
+            return response()->json(['ok' => false, 'mensaje' => 'Producto no encontrado.'], 404);
+        }
+
+        $talla = Talla::find($request->id_talla);
+        if (!$talla) {
+            return response()->json(['ok' => false, 'mensaje' => 'Talla no válida.'], 422);
+        }
+
+        $carrito            = session('carrito', []);
+        $clave              = $producto->id_producto . '_' . $talla->id_talla;
+        $cantidadSolicitada = (int) $request->cantidad;
+        $cantidadEnCarrito  = isset($carrito[$clave]) ? $carrito[$clave]['cantidad'] : 0;
+        $cantidadTotal      = $cantidadEnCarrito + $cantidadSolicitada;
+        $stock              = $this->stockDisponible($producto->id_producto, $talla->id_talla);
+
+        if ($stock <= 0) {
+            return response()->json(['ok' => false, 'mensaje' => 'No hay stock disponible para la talla ' . $talla->nombre . '.'], 422);
+        }
+
+        if ($cantidadTotal > $stock) {
+            return response()->json(['ok' => false, 'mensaje' => "Solo hay {$stock} unidad(es) en stock para talla {$talla->nombre}."], 422);
+        }
+
+        if (isset($carrito[$clave])) {
+            $carrito[$clave]['cantidad'] = $cantidadTotal;
+        } else {
+            $carrito[$clave] = [
+                'id_producto' => $producto->id_producto,
+                'id_talla'    => $talla->id_talla,
+                'nombre'      => $producto->nombre,
+                'talla'       => $talla->nombre,
+                'precio'      => $producto->precio_venta_base,
+                'cantidad'    => $cantidadTotal,
+                'imagen'      => optional($producto->imagenes_productos->first())->url_imagen,
+            ];
+        }
+
+        session(['carrito' => $carrito]);
+
+        $totalItems = collect(session('carrito', []))->sum('cantidad');
+
+        return response()->json([
+            'ok'          => true,
+            'mensaje'     => "✅ {$producto->nombre} (talla {$talla->nombre}) agregado al carrito.",
+            'total_items' => $totalItems,
+        ]);
+    }
+}

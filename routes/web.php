@@ -56,6 +56,7 @@ Route::middleware('auth')->group(function () {
     Route::patch('/carrito/{clave}',                [CarritoController::class, 'actualizar'])->name('carrito.actualizar');
     Route::delete('/carrito/{clave}',               [CarritoController::class, 'eliminar'])->name('carrito.eliminar');
     Route::delete('/carrito',                       [CarritoController::class, 'vaciar'])->name('carrito.vaciar');
+    Route::post('/carrito/{id}/asistente',          [CarritoController::class, 'agregarDesdeAsistente'])->name('carrito.asistente.agregar');
 
     // ─── Checkout + PayPal ────────────────────────────────────────────────────
     Route::get('/checkout',                         [CheckoutController::class, 'index'])->name('checkout.index');
