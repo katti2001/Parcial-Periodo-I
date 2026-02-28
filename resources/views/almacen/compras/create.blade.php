@@ -115,6 +115,74 @@
         <a href="{{ route('almacen.compras.index') }}" class="btn btn-outline-secondary">Cancelar</a>
     </div>
 </form>
+
+{{-- ══════════════════════════════════════════════════════════
+     ASISTENTE IA — Botón flotante + Modal chat
+══════════════════════════════════════════════════════════ --}}
+
+{{-- Botón flotante --}}
+<button id="btnAsistente" type="button"
+        style="position:fixed;bottom:28px;right:28px;z-index:1055;
+               width:56px;height:56px;border-radius:50%;
+               background:linear-gradient(135deg,#4f46e5,#7c3aed);
+               border:none;box-shadow:0 4px 18px rgba(79,70,229,.45);
+               display:flex;align-items:center;justify-content:center;
+               cursor:pointer;transition:transform .15s;">
+    <i class="bi bi-stars text-white" style="font-size:1.4rem;"></i>
+</button>
+
+{{-- Modal chat --}}
+<div id="modalAsistente"
+     style="display:none;position:fixed;bottom:96px;right:28px;z-index:1054;
+            width:360px;max-height:540px;
+            background:#fff;border-radius:16px;
+            box-shadow:0 8px 32px rgba(0,0,0,.18);
+            display:none;flex-direction:column;overflow:hidden;">
+
+    {{-- Header --}}
+    <div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:14px 16px;
+                display:flex;align-items:center;justify-content:space-between;">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-stars text-white" style="font-size:1.1rem;"></i>
+            <span class="text-white fw-semibold" style="font-size:.95rem;">Asistente de compras</span>
+        </div>
+        <button id="btnCerrarAsistente" type="button"
+                style="background:none;border:none;color:rgba(255,255,255,.7);
+                       font-size:1.2rem;line-height:1;cursor:pointer;padding:0;">
+            <i class="bi bi-x-lg"></i>
+        </button>
+    </div>
+
+    {{-- Mensajes --}}
+    <div id="chatMensajes"
+         style="flex:1;overflow-y:auto;padding:14px;display:flex;
+                flex-direction:column;gap:10px;max-height:360px;
+                background:#f8f9fa;">
+        {{-- Mensaje bienvenida --}}
+        <div class="msg-bot" style="align-self:flex-start;max-width:90%;">
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px 12px 12px 2px;
+                        padding:10px 13px;font-size:.85rem;color:#374151;
+                        box-shadow:0 1px 3px rgba(0,0,0,.06);">
+                ¡Hola! Dime qué producto necesitas comprar y te digo si hay stock. También puedo agregarlo al formulario.
+            </div>
+        </div>
+    </div>
+
+    {{-- Input --}}
+    <div style="padding:10px 12px;border-top:1px solid #e9ecef;background:#fff;display:flex;gap:8px;">
+        <input id="chatInput" type="text" placeholder="Ej: camiseta del Barcelona talla M..."
+               style="flex:1;border:1px solid #d1d5db;border-radius:8px;
+                      padding:8px 12px;font-size:.85rem;outline:none;"
+               maxlength="300" autocomplete="off">
+        <button id="btnEnviarChat" type="button"
+                style="background:linear-gradient(135deg,#4f46e5,#7c3aed);
+                       border:none;border-radius:8px;width:38px;height:38px;
+                       display:flex;align-items:center;justify-content:center;
+                       cursor:pointer;flex-shrink:0;">
+            <i class="bi bi-send-fill text-white" style="font-size:.85rem;"></i>
+        </button>
+    </div>
+</div>
 @endsection
 
 @push('styles')
@@ -635,6 +703,172 @@ document.getElementById('inputMargen').addEventListener('input', () => {
     tbody.insertAdjacentHTML('beforeend', buildFila(filaIndex++, true));
     bindFila(tbody.querySelector('tr:last-child'));
     recalcularTotales();
+})();
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ASISTENTE IA — lógica del chat
+// ══════════════════════════════════════════════════════════════════════════════
+(function initAsistente() {
+    const btnAbrir   = document.getElementById('btnAsistente');
+    const btnCerrar  = document.getElementById('btnCerrarAsistente');
+    const modal      = document.getElementById('modalAsistente');
+    const mensajes   = document.getElementById('chatMensajes');
+    const input      = document.getElementById('chatInput');
+    const btnEnviar  = document.getElementById('btnEnviarChat');
+    const csrfToken  = document.querySelector('meta[name="csrf-token"]').content;
+    const urlChat    = "{{ route('almacen.asistente.chat') }}";
+
+    // Abrir / cerrar modal
+    btnAbrir.addEventListener('click', () => {
+        const visible = modal.style.display === 'flex';
+        modal.style.display = visible ? 'none' : 'flex';
+        modal.style.flexDirection = 'column';
+        if (!visible) input.focus();
+    });
+    btnCerrar.addEventListener('click', () => { modal.style.display = 'none'; });
+
+    // Hover en botón flotante
+    btnAbrir.addEventListener('mouseenter', () => btnAbrir.style.transform = 'scale(1.1)');
+    btnAbrir.addEventListener('mouseleave', () => btnAbrir.style.transform = 'scale(1)');
+
+    // Enter para enviar
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') enviar(); });
+    btnEnviar.addEventListener('click', enviar);
+
+    // ── Renderizar mensaje ────────────────────────────────────────────────────
+    function agregarMensaje(texto, tipo, accion) {
+        const esBot = tipo === 'bot';
+        const wrap  = document.createElement('div');
+        wrap.className = esBot ? 'msg-bot' : 'msg-user';
+        wrap.style.cssText = esBot
+            ? 'align-self:flex-start;max-width:92%;'
+            : 'align-self:flex-end;max-width:92%;';
+
+        const burbuja = document.createElement('div');
+        burbuja.style.cssText = esBot
+            ? 'background:#fff;border:1px solid #e2e8f0;border-radius:12px 12px 12px 2px;padding:10px 13px;font-size:.85rem;color:#374151;box-shadow:0 1px 3px rgba(0,0,0,.06);'
+            : 'background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:12px 12px 2px 12px;padding:10px 13px;font-size:.85rem;color:#fff;';
+
+        // Convertir saltos de línea en <br>
+        burbuja.innerHTML = texto.replace(/\n/g, '<br>');
+        wrap.appendChild(burbuja);
+
+        // Botón "Agregar al formulario" si hay acción
+        if (accion && accion.accion === 'agregar') {
+            const btnAgregar = document.createElement('button');
+            btnAgregar.type = 'button';
+            btnAgregar.innerHTML = '<i class="bi bi-plus-circle me-1"></i>Agregar al formulario';
+            btnAgregar.style.cssText = 'margin-top:6px;font-size:.78rem;padding:4px 10px;border-radius:6px;border:1px solid #4f46e5;color:#4f46e5;background:#fff;cursor:pointer;display:block;';
+            btnAgregar.addEventListener('click', () => agregarProductoAlFormulario(accion));
+            wrap.appendChild(btnAgregar);
+
+            // Sugerencias similares
+            if (accion.similares && accion.similares.length > 0) {
+                const simWrap = document.createElement('div');
+                simWrap.style.cssText = 'margin-top:6px;display:flex;flex-wrap:wrap;gap:5px;';
+                accion.similares.forEach(s => {
+                    const chip = document.createElement('button');
+                    chip.type = 'button';
+                    chip.innerHTML = `<i class="bi bi-arrow-right-circle me-1"></i>${s.nombre} <span style="opacity:.7">(stock: ${s.stock})</span>`;
+                    chip.style.cssText = 'font-size:.73rem;padding:3px 8px;border-radius:20px;border:1px solid #d1d5db;background:#f3f4f6;color:#374151;cursor:pointer;';
+                    chip.title = 'Agregar este producto similar';
+                    chip.addEventListener('click', () => agregarProductoAlFormulario(s));
+                    simWrap.appendChild(chip);
+                });
+                const label = document.createElement('div');
+                label.textContent = 'Similares:';
+                label.style.cssText = 'font-size:.72rem;color:#6b7280;margin-top:6px;width:100%;';
+                wrap.appendChild(label);
+                wrap.appendChild(simWrap);
+            }
+        }
+
+        mensajes.appendChild(wrap);
+        mensajes.scrollTop = mensajes.scrollHeight;
+    }
+
+    // ── Indicador de escritura ────────────────────────────────────────────────
+    function mostrarTyping() {
+        const el = document.createElement('div');
+        el.id = 'typing-indicator';
+        el.style.cssText = 'align-self:flex-start;';
+        el.innerHTML = `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px 12px 12px 2px;
+            padding:8px 14px;font-size:.8rem;color:#9ca3af;box-shadow:0 1px 3px rgba(0,0,0,.06);">
+            <span class="typing-dot">●</span> <span class="typing-dot">●</span> <span class="typing-dot">●</span>
+        </div>`;
+        mensajes.appendChild(el);
+        mensajes.scrollTop = mensajes.scrollHeight;
+    }
+    function ocultarTyping() {
+        const el = document.getElementById('typing-indicator');
+        if (el) el.remove();
+    }
+
+    // ── Enviar mensaje al backend ─────────────────────────────────────────────
+    async function enviar() {
+        const texto = input.value.trim();
+        if (!texto) return;
+
+        agregarMensaje(texto, 'user');
+        input.value = '';
+        btnEnviar.disabled = true;
+        mostrarTyping();
+
+        try {
+            const res = await fetch(urlChat, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({ mensaje: texto }),
+            });
+
+            ocultarTyping();
+            const data = await res.json();
+
+            if (data.error) {
+                agregarMensaje('⚠️ ' + data.mensaje, 'bot');
+            } else {
+                agregarMensaje(data.mensaje, 'bot', data.accion);
+            }
+        } catch (e) {
+            ocultarTyping();
+            agregarMensaje('Error de red. Verifica tu conexión.', 'bot');
+        } finally {
+            btnEnviar.disabled = false;
+            input.focus();
+        }
+    }
+
+    // ── Agregar producto existente al formulario de compra ────────────────────
+    function agregarProductoAlFormulario(accion) {
+        const tbody    = document.getElementById('filas');
+        const esPrimera = tbody.querySelectorAll('.fila-item').length === 0;
+
+        tbody.insertAdjacentHTML('beforeend', buildFila(filaIndex++, esPrimera));
+        const nuevaFila = tbody.querySelector('tr:last-child');
+        bindFila(nuevaFila);
+
+        // Seleccionar el producto en el <select> de la fila
+        const idProducto = accion.id_producto ?? accion.id;
+        const selProducto = nuevaFila.querySelector('.sel-producto');
+        if (selProducto && idProducto) {
+            selProducto.value = String(idProducto);
+            // Disparar evento change para actualizar precio
+            selProducto.dispatchEvent(new Event('change'));
+        }
+
+        recalcularTotales();
+
+        // Scroll suave hasta la nueva fila
+        nuevaFila.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        // Confirmar en el chat
+        const nombre = accion.nombre ?? 'Producto';
+        agregarMensaje(`✅ "${nombre}" agregado al formulario. Selecciona la talla y cantidad.`, 'bot');
+    }
 })();
 </script>
 @endpush

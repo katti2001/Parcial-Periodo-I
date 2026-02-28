@@ -151,18 +151,29 @@ class ProductoController extends Controller
 
         // Subir nuevas imágenes a Cloudinary
         if ($request->hasFile('imagenes')) {
+            // Contar imágenes DESPUÉS de las eliminaciones para asignar es_principal correctamente
             $tieneImagenes = $producto->imagenes_productos()->count();
+
+            // Si no queda ninguna imagen principal, asignar la primera nueva como principal
+            $tienePrincipal = $producto->imagenes_productos()->where('es_principal', true)->exists();
 
             foreach ($request->file('imagenes') as $i => $archivo) {
                 $resultado = Cloudinary::upload($archivo->getRealPath(), [
                     'folder' => 'tienda_paypal/productos',
                 ]);
 
+                $esPrincipal = ($tieneImagenes === 0 && $i === 0) || (!$tienePrincipal && $i === 0);
+
                 ImagenesProducto::create([
                     'id_producto'  => $producto->id_producto,
                     'url_imagen'   => $resultado->getSecurePath(),
-                    'es_principal' => ($tieneImagenes === 0 && $i === 0),
+                    'es_principal' => $esPrincipal,
                 ]);
+
+                // Una vez asignada la principal, no volver a asignarla
+                if ($esPrincipal) {
+                    $tienePrincipal = true;
+                }
             }
         }
 
@@ -172,7 +183,17 @@ class ProductoController extends Controller
 
     public function destroy($id)
     {
-        $producto = Producto::findOrFail($id);
+        $producto = Producto::with('imagenes_productos')->findOrFail($id);
+
+        // Eliminar imágenes de Cloudinary y de la BD antes de desactivar
+        foreach ($producto->imagenes_productos as $img) {
+            $publicId = $this->extraerPublicId($img->url_imagen);
+            if ($publicId) {
+                Cloudinary::destroy($publicId);
+            }
+            $img->delete();
+        }
+
         $producto->update(['activo' => false]);
 
         return redirect()->route('admin.productos.index')
