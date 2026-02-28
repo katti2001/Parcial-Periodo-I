@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CarritoController;
 use App\Http\Controllers\CatalogoController;
+use App\Http\Controllers\AsistenteCatalogoController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\DevolucionController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboard;
@@ -15,6 +16,7 @@ use App\Http\Controllers\Admin\DevolucionController as AdminDevolucion;
 use App\Http\Controllers\Almacen\ProveedorController as AlmacenProveedor;
 use App\Http\Controllers\Almacen\CompraController as AlmacenCompra;
 use App\Http\Controllers\Almacen\KardexController as AlmacenKardex;
+use App\Http\Controllers\Almacen\AsistenteController as AlmacenAsistente;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -26,6 +28,7 @@ use Illuminate\Support\Facades\Route;
 // ─── Catálogo público ─────────────────────────────────────────────────────────
 Route::get('/catalogo',         [CatalogoController::class, 'index'])->name('catalogo.index');
 Route::get('/catalogo/{id}',    [CatalogoController::class, 'show'])->name('catalogo.show');
+Route::post('/catalogo/asistente/chat', [AsistenteCatalogoController::class, 'chat'])->name('catalogo.asistente.chat');
 
 // ─── Página de inicio ─────────────────────────────────────────────────────────
 Route::get('/', function () {
@@ -140,4 +143,7 @@ Route::middleware(['auth', 'almacen'])->prefix('almacen')->name('almacen.')->gro
 
     // Kardex
     Route::get('/kardex',                  [AlmacenKardex::class, 'index'])->name('kardex.index');
+
+    // Asistente IA (Gemini)
+    Route::post('/asistente/chat',         [AlmacenAsistente::class, 'chat'])->name('asistente.chat');
 });
