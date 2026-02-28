@@ -131,8 +131,6 @@ class CarritoController extends Controller
         return redirect()->route('carrito.index')
             ->with('success', 'Carrito vaciado.');
     }
-}
-
     /**
      * Agregar al carrito desde el asistente IA (responde JSON).
      */
