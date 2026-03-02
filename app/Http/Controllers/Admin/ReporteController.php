@@ -134,7 +134,7 @@ class ReporteController extends Controller
         $topProductos = DetallePedido::select(
                 'id_producto',
                 DB::raw('SUM(cantidad) as total_unidades'),
-                DB::raw('SUM(cantidad * precio_venta_unitario) as total_ingresos')
+                DB::raw('SUM(cantidad * precio_unitario) as total_ingresos')
             )
             ->with('producto:id_producto,nombre')
             ->groupBy('id_producto')
