@@ -68,6 +68,22 @@ class Producto extends Model
 		return $this->hasMany(DetalleCompra::class, 'id_producto');
 	}
 
+	public function getPrecioCalculadoAttribute()
+	{
+		$primerLote = $this->detalle_compras()->orderBy('id_detalle_compra', 'asc')->first();
+		$primerCosto = $primerLote ? (float) $primerLote->costo_unitario : 0;
+
+		$loteActual = $this->detalle_compras()->where('cantidad_restante', '>', 0)
+			->orderBy('id_detalle_compra', 'asc')->first();
+
+		if ($loteActual && $primerCosto > 0) {
+			$margen = $this->precio_venta_base / $primerCosto;
+			return round($loteActual->costo_unitario * $margen, 2);
+		}
+
+		return (float) $this->precio_venta_base;
+	}
+
 	public function detalle_pedidos()
 	{
 		return $this->hasMany(DetallePedido::class, 'id_producto');

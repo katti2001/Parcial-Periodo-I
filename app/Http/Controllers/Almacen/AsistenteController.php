@@ -47,7 +47,7 @@ class AsistenteController extends Controller
                 'nombre'    => $p->nombre,
                 'categoria' => $categoria,
                 'equipo'    => $equipo,
-                'precio'    => $p->precio_venta_base,
+                'precio'    => $p->precio_calculado,
                 'stock'     => (int) $stock,
             ];
         })->values()->toArray();
