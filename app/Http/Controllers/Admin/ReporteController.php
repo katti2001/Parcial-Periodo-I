@@ -156,11 +156,11 @@ class ReporteController extends Controller
 
         // Nuevos clientes por mes — últimos 12 meses
         $clientesRaw = Usuario::select(
-                DB::raw("DATE_FORMAT(created_at, '%Y-%m') as mes"),
+                DB::raw("DATE_FORMAT(fecha_registro, '%Y-%m') as mes"),
                 DB::raw('COUNT(*) as cantidad')
             )
             ->where('rol', 'cliente')
-            ->where('created_at', '>=', now()->subMonths(11)->startOfMonth())
+            ->where('fecha_registro', '>=', now()->subMonths(11)->startOfMonth())
             ->groupBy('mes')
             ->pluck('cantidad', 'mes');
 
