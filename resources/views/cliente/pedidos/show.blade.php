@@ -48,7 +48,7 @@
             <ul class="list-group list-group-flush">
                 @foreach($pedido->detalle_pedidos as $detalle)
                 @php
-                    $imagen = optional($detalle->producto->imagenes->first())->url_imagen;
+                    $imagen = optional($detalle->producto->imagenes_productos->first())->url_imagen;
                 @endphp
                 <li class="list-group-item">
                     <div class="d-flex align-items-center gap-3">
