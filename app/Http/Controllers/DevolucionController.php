@@ -30,7 +30,7 @@ class DevolucionController extends Controller
     public function show($id)
     {
         $pedido = Pedido::with([
-            'detalle_pedidos.producto.imagenes',
+            'detalle_pedidos.producto.imagenes_productos',
             'detalle_pedidos.talla',
             'cupon',
             'devolucion.detalles',
