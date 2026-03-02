@@ -53,6 +53,10 @@
                class="nav-link {{ request()->routeIs('admin.cupones*') ? 'active' : '' }}">
                 <i class="bi bi-ticket-perforated me-2"></i>Cupones
             </a>
+            <a href="{{ route('admin.reportes.index') }}"
+               class="nav-link {{ request()->routeIs('admin.reportes*') ? 'active' : '' }}">
+                <i class="bi bi-file-earmark-bar-graph me-2"></i>Reportes
+            </a>
             <hr class="border-secondary my-2">
             <a href="{{ route('almacen.dashboard') }}"
                class="nav-link {{ request()->routeIs('almacen.*') ? 'active' : '' }}">
