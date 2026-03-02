@@ -19,6 +19,7 @@ use App\Http\Controllers\Almacen\KardexController as AlmacenKardex;
 use App\Http\Controllers\Almacen\AsistenteController as AlmacenAsistente;
 use App\Http\Controllers\FacturaController;
 use App\Http\Controllers\Admin\FacturaController as AdminFactura;
+use App\Http\Controllers\Admin\ReporteController as AdminReporte;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -103,6 +104,13 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Facturas
     Route::get('/facturas',                             [AdminFactura::class, 'index'])->name('facturas.index');
     Route::get('/facturas/{id}',                        [AdminFactura::class, 'show'])->name('facturas.show');
+
+    // Reportes
+    Route::get('/reportes',                             [AdminReporte::class, 'index'])->name('reportes.index');
+    Route::get('/reportes/ventas',                      [AdminReporte::class, 'ventas'])->name('reportes.ventas');
+    Route::get('/reportes/productos',                   [AdminReporte::class, 'productos'])->name('reportes.productos');
+    Route::get('/reportes/devoluciones',                [AdminReporte::class, 'devoluciones'])->name('reportes.devoluciones');
+    Route::get('/reportes/estadisticas', [AdminReporte::class, 'estadisticas'])->name('reportes.estadisticas');
 
     // Cupones
     Route::get('/cupones',                              [AdminCupon::class, 'index'])->name('cupones.index');

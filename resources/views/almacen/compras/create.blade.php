@@ -537,6 +537,13 @@ function bindImagenPreview(fila) {
     // Almacén local de { file, dataUrl }
     let slides = [];
 
+    // Sincroniza el array slides con el FileList real del input via DataTransfer
+    function syncInput() {
+        const dt = new DataTransfer();
+        slides.forEach(s => dt.items.add(s.file));
+        inputFile.files = dt.files;
+    }
+
     function renderSlides() {
         carousel.innerHTML = '';
         slides.forEach((s, i) => {
@@ -548,6 +555,7 @@ function bindImagenPreview(fila) {
                 <button type="button" class="btn-rm" title="Quitar" data-i="${i}">×</button>`;
             slide.querySelector('.btn-rm').addEventListener('click', () => {
                 slides.splice(i, 1);
+                syncInput();
                 renderSlides();
             });
             carousel.appendChild(slide);
@@ -584,12 +592,15 @@ function bindImagenPreview(fila) {
             reader.onload = e => {
                 slides.push({ file, dataUrl: e.target.result });
                 loaded++;
-                if (loaded === toLoad.length) renderSlides();
+                if (loaded === toLoad.length) {
+                    syncInput();
+                    renderSlides();
+                }
             };
             reader.readAsDataURL(file);
         });
 
-        this.value = ''; // reset para permitir volver a seleccionar
+        this.value = ''; // reset para permitir volver a seleccionar el mismo archivo
     });
 
     renderSlides(); // estado inicial
