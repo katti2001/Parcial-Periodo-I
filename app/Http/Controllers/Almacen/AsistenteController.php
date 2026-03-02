@@ -54,7 +54,7 @@ class AsistenteController extends Controller
 
         $catalogoJson = json_encode($catalogo, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 
-        // ── 4. Construir prompt para Gemini ───────────────────────────────────
+        // ── 4. prompt para Gemini ───────────────────────────────────
         $systemPrompt = <<<PROMPT
 Eres un asistente de compras para una tienda de ropa deportiva.
 Tu trabajo es ayudar al encargado de almacén a registrar una nueva compra a proveedor.

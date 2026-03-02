@@ -116,20 +116,28 @@ class CompraController extends Controller
         }
 
         // Subir imágenes a Cloudinary ANTES de la transacción para no mezclar IO con DB
-        // imagenes[idx][] → array indexado por el mismo índice que items[idx]
-        $imagenesSubidas = []; // idx => [ ['url' => ..., 'es_principal' => bool], ... ]
-        $imagenesInput   = $request->file('imagenes', []);
+        $imagenesSubidas  = [];
+        $warningsImagenes = [];
+        $imagenesInput    = $request->file('imagenes', []);
         foreach ($imagenesInput as $idx => $archivos) {
             if (empty($archivos)) continue;
             $imagenesSubidas[$idx] = [];
             foreach (array_slice($archivos, 0, 5) as $pos => $archivo) {
-                $resultado = Cloudinary::upload($archivo->getRealPath(), [
-                    'folder' => 'tienda_paypal/productos',
-                ]);
-                $imagenesSubidas[$idx][] = [
-                    'url'          => $resultado->getSecurePath(),
-                    'es_principal' => ($pos === 0),
-                ];
+                try {
+                    $resultado = Cloudinary::upload($archivo->getRealPath(), [
+                        'folder' => 'tienda_paypal/productos',
+                    ]);
+                    $imagenesSubidas[$idx][] = [
+                        'url'          => $resultado->getSecurePath(),
+                        'es_principal' => ($pos === 0),
+                    ];
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error('Cloudinary upload error (compra)', [
+                        'archivo' => $archivo->getClientOriginalName(),
+                        'error'   => $e->getMessage(),
+                    ]);
+                    $warningsImagenes[] = 'No se pudo subir "' . $archivo->getClientOriginalName() . '": ' . $e->getMessage();
+                }
             }
         }
 
@@ -233,8 +241,14 @@ class CompraController extends Controller
             }
         });
 
-        return redirect()->route('almacen.compras.index')
+        $redirect = redirect()->route('almacen.compras.index')
             ->with('success', 'Compra registrada correctamente.');
+
+        if (!empty($warningsImagenes)) {
+            $redirect->with('warning', 'La compra fue registrada, pero algunas imágenes no se subieron: ' . implode(' | ', $warningsImagenes));
+        }
+
+        return $redirect;
     }
 
     public function show($id)

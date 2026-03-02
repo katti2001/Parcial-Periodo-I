@@ -76,7 +76,7 @@ class ProductoController extends Controller
             'id_equipo'         => 'nullable|integer|exists:equipos,id_equipo',
             'activo'            => 'boolean',
             'imagenes'          => 'nullable|array|max:5',
-            'imagenes.*'        => 'image|mimes:jpg,jpeg,png,webp|max:3072',
+            'imagenes.*'        => 'image|max:3072',
         ]);
 
         $data['activo'] = $request->boolean('activo', true);
@@ -85,22 +85,37 @@ class ProductoController extends Controller
         $producto = Producto::create($data);
 
         // Subir imágenes a Cloudinary
+        $warningsImagenes = [];
         if ($request->hasFile('imagenes')) {
             foreach ($request->file('imagenes') as $i => $archivo) {
-                $resultado = Cloudinary::upload($archivo->getRealPath(), [
-                    'folder' => 'tienda_paypal/productos',
-                ]);
+                try {
+                    $resultado = Cloudinary::upload($archivo->getRealPath(), [
+                        'folder' => 'tienda_paypal/productos',
+                    ]);
 
-                ImagenesProducto::create([
-                    'id_producto'  => $producto->id_producto,
-                    'url_imagen'   => $resultado->getSecurePath(),
-                    'es_principal' => $i === 0, // la primera imagen es la principal
-                ]);
+                    ImagenesProducto::create([
+                        'id_producto'  => $producto->id_producto,
+                        'url_imagen'   => $resultado->getSecurePath(),
+                        'es_principal' => $i === 0,
+                    ]);
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error('Cloudinary upload error (store)', [
+                        'archivo' => $archivo->getClientOriginalName(),
+                        'error'   => $e->getMessage(),
+                    ]);
+                    $warningsImagenes[] = 'No se pudo subir "' . $archivo->getClientOriginalName() . '": ' . $e->getMessage();
+                }
             }
         }
 
-        return redirect()->route('admin.productos.index')
+        $redirect = redirect()->route('admin.productos.index')
             ->with('success', 'Producto creado correctamente.');
+
+        if (!empty($warningsImagenes)) {
+            $redirect->with('warning', 'El producto fue creado, pero algunas imágenes no se subieron: ' . implode(' | ', $warningsImagenes));
+        }
+
+        return $redirect;
     }
 
     public function edit($id)
@@ -124,7 +139,7 @@ class ProductoController extends Controller
             'id_equipo'             => 'nullable|integer|exists:equipos,id_equipo',
             'activo'                => 'boolean',
             'imagenes'              => 'nullable|array|max:5',
-            'imagenes.*'            => 'image|mimes:jpg,jpeg,png,webp|max:3072',
+            'imagenes.*'            => 'image|max:3072',
             'eliminar_imagenes'     => 'nullable|array',
             'eliminar_imagenes.*'   => 'integer|exists:imagenes_productos,id_imagen',
         ]);
@@ -135,6 +150,7 @@ class ProductoController extends Controller
         $producto->update($data);
 
         // Eliminar imágenes seleccionadas en Cloudinary y en BD
+        $warningsImagenes = [];
         if ($request->filled('eliminar_imagenes')) {
             $aEliminar = ImagenesProducto::whereIn('id_imagen', $request->eliminar_imagenes)
                 ->where('id_producto', $producto->id_producto)
@@ -143,7 +159,15 @@ class ProductoController extends Controller
             foreach ($aEliminar as $img) {
                 $publicId = $this->extraerPublicId($img->url_imagen);
                 if ($publicId) {
-                    Cloudinary::destroy($publicId);
+                    try {
+                        Cloudinary::destroy($publicId);
+                    } catch (\Exception $e) {
+                        \Illuminate\Support\Facades\Log::warning('Cloudinary destroy error (update)', [
+                            'public_id' => $publicId,
+                            'error'     => $e->getMessage(),
+                        ]);
+                        // Se elimina de la BD aunque falle en Cloudinary
+                    }
                 }
                 $img->delete();
             }
@@ -151,34 +175,44 @@ class ProductoController extends Controller
 
         // Subir nuevas imágenes a Cloudinary
         if ($request->hasFile('imagenes')) {
-            // Contar imágenes DESPUÉS de las eliminaciones para asignar es_principal correctamente
-            $tieneImagenes = $producto->imagenes_productos()->count();
-
-            // Si no queda ninguna imagen principal, asignar la primera nueva como principal
+            $tieneImagenes  = $producto->imagenes_productos()->count();
             $tienePrincipal = $producto->imagenes_productos()->where('es_principal', true)->exists();
 
             foreach ($request->file('imagenes') as $i => $archivo) {
-                $resultado = Cloudinary::upload($archivo->getRealPath(), [
-                    'folder' => 'tienda_paypal/productos',
-                ]);
+                try {
+                    $resultado = Cloudinary::upload($archivo->getRealPath(), [
+                        'folder' => 'tienda_paypal/productos',
+                    ]);
 
-                $esPrincipal = ($tieneImagenes === 0 && $i === 0) || (!$tienePrincipal && $i === 0);
+                    $esPrincipal = ($tieneImagenes === 0 && $i === 0) || (!$tienePrincipal && $i === 0);
 
-                ImagenesProducto::create([
-                    'id_producto'  => $producto->id_producto,
-                    'url_imagen'   => $resultado->getSecurePath(),
-                    'es_principal' => $esPrincipal,
-                ]);
+                    ImagenesProducto::create([
+                        'id_producto'  => $producto->id_producto,
+                        'url_imagen'   => $resultado->getSecurePath(),
+                        'es_principal' => $esPrincipal,
+                    ]);
 
-                // Una vez asignada la principal, no volver a asignarla
-                if ($esPrincipal) {
-                    $tienePrincipal = true;
+                    if ($esPrincipal) {
+                        $tienePrincipal = true;
+                    }
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error('Cloudinary upload error (update)', [
+                        'archivo' => $archivo->getClientOriginalName(),
+                        'error'   => $e->getMessage(),
+                    ]);
+                    $warningsImagenes[] = 'No se pudo subir "' . $archivo->getClientOriginalName() . '": ' . $e->getMessage();
                 }
             }
         }
 
-        return redirect()->route('admin.productos.index')
+        $redirect = redirect()->route('admin.productos.index')
             ->with('success', 'Producto actualizado correctamente.');
+
+        if (!empty($warningsImagenes)) {
+            $redirect->with('warning', 'El producto fue actualizado, pero algunas imágenes no se subieron: ' . implode(' | ', $warningsImagenes));
+        }
+
+        return $redirect;
     }
 
     public function destroy($id)

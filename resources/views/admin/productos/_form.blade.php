@@ -80,15 +80,18 @@
     <div class="col-12">
         <label class="form-label fw-semibold">
             {{ isset($producto) ? 'Agregar imágenes' : 'Imágenes del producto' }}
-            <span class="text-muted fw-normal">(máx. 5 archivos · 3 MB c/u · JPG, PNG, WEBP)</span>
+            <span class="text-muted fw-normal">(máx. 5 archivos · 3 MB c/u)</span>
         </label>
         <input type="file" name="imagenes[]" multiple
-               accept="image/jpeg,image/png,image/webp"
+               accept="image/*"
                class="form-control @error('imagenes') is-invalid @enderror @error('imagenes.*') is-invalid @enderror"
                id="inputImagenes">
         @error('imagenes')   <div class="invalid-feedback">{{ $message }}</div>@enderror
         @error('imagenes.*') <div class="invalid-feedback">{{ $message }}</div>@enderror
+
+        {{-- Preview con botón quitar --}}
         <div id="previewImagenes" class="d-flex flex-wrap gap-2 mt-2"></div>
+        <small id="contadorImagenes" class="text-muted d-none mt-1"></small>
     </div>
 
     <div class="col-12">
@@ -100,20 +103,119 @@
     </div>
 </div>
 
-{{-- Preview JS de imágenes seleccionadas --}}
+{{-- Preview JS de imágenes seleccionadas con botón quitar --}}
+<style>
+.img-preview-wrap {
+    position: relative;
+    width: 80px;
+    height: 80px;
+}
+.img-preview-wrap img {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid #dee2e6;
+    display: block;
+}
+.img-preview-wrap:first-child img {
+    border-color: #0d6efd;
+}
+.img-preview-wrap .badge-principal {
+    position: absolute;
+    bottom: 2px;
+    left: 2px;
+    font-size: .55rem;
+    padding: 1px 4px;
+    background: #0d6efd;
+    color: #fff;
+    border-radius: 3px;
+    line-height: 1.4;
+    pointer-events: none;
+}
+.img-preview-wrap .btn-quitar-preview {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 20px;
+    height: 20px;
+    font-size: .7rem;
+    line-height: 20px;
+    text-align: center;
+    padding: 0;
+    border-radius: 50%;
+    background: rgba(220,53,69,.85);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.img-preview-wrap .btn-quitar-preview:hover {
+    background: rgba(220,53,69,1);
+}
+</style>
 <script>
-document.getElementById('inputImagenes').addEventListener('change', function () {
-    const preview = document.getElementById('previewImagenes');
-    preview.innerHTML = '';
-    Array.from(this.files).forEach(file => {
-        const reader = new FileReader();
-        reader.onload = e => {
-            const img = document.createElement('img');
-            img.src = e.target.result;
-            img.style.cssText = 'height:80px;width:80px;object-fit:cover;border-radius:6px;border:1px solid #dee2e6';
-            preview.appendChild(img);
-        };
-        reader.readAsDataURL(file);
+(function () {
+    const MAX  = 5;
+    const input    = document.getElementById('inputImagenes');
+    const preview  = document.getElementById('previewImagenes');
+    const contador = document.getElementById('contadorImagenes');
+
+    // Almacén de archivos seleccionados (independiente del FileList nativo)
+    let archivos = [];
+
+    function syncInput() {
+        const dt = new DataTransfer();
+        archivos.forEach(f => dt.items.add(f));
+        input.files = dt.files;
+    }
+
+    function actualizarContador() {
+        if (archivos.length === 0) {
+            contador.classList.add('d-none');
+        } else {
+            contador.classList.remove('d-none');
+            contador.textContent = archivos.length + ' imagen' + (archivos.length > 1 ? 'es' : '') +
+                ' seleccionada' + (archivos.length > 1 ? 's' : '') +
+                ' — la primera será la principal';
+        }
+    }
+
+    function renderPreview() {
+        preview.innerHTML = '';
+        archivos.forEach((file, i) => {
+            const reader = new FileReader();
+            reader.onload = e => {
+                const wrap = document.createElement('div');
+                wrap.className = 'img-preview-wrap';
+                wrap.innerHTML =
+                    '<img src="' + e.target.result + '" alt="' + file.name + '">' +
+                    (i === 0 ? '<span class="badge-principal">Principal</span>' : '') +
+                    '<button type="button" class="btn-quitar-preview" title="Quitar imagen">×</button>';
+
+                wrap.querySelector('.btn-quitar-preview').addEventListener('click', function () {
+                    archivos.splice(i, 1);
+                    syncInput();
+                    renderPreview();
+                    actualizarContador();
+                });
+
+                preview.appendChild(wrap);
+            };
+            reader.readAsDataURL(file);
+        });
+        actualizarContador();
+    }
+
+    input.addEventListener('change', function () {
+        const restantes = MAX - archivos.length;
+        if (restantes <= 0) { this.value = ''; return; }
+
+        Array.from(this.files).slice(0, restantes).forEach(f => archivos.push(f));
+        syncInput();
+        renderPreview();
     });
-});
+})();
 </script>
