@@ -107,7 +107,6 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
     // Reportes
     Route::get('/reportes',                             [AdminReporte::class, 'index'])->name('reportes.index');
-    Route::get('/reportes/estadisticas',                [AdminReporte::class, 'estadisticas'])->name('reportes.estadisticas');
     Route::get('/reportes/ventas',                      [AdminReporte::class, 'ventas'])->name('reportes.ventas');
     Route::get('/reportes/productos',                   [AdminReporte::class, 'productos'])->name('reportes.productos');
     Route::get('/reportes/devoluciones',                [AdminReporte::class, 'devoluciones'])->name('reportes.devoluciones');
