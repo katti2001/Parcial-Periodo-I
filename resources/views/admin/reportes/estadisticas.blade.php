@@ -282,33 +282,6 @@
 
 </div>
 
-{{-- ── Fila 3: Nuevos clientes por mes ─────────────────────────────────────── --}}
-<div class="row g-3 mb-4">
-    <div class="col-12">
-        <div class="card shadow-sm">
-            <div class="card-header bg-white fw-bold border-0 pt-3">
-                <i class="bi bi-people me-2"></i>Nuevos clientes por mes
-                <span class="text-muted fw-normal small">(últimos 12 meses)</span>
-            </div>
-            <div class="card-body">
-                <div class="bar-chart-wrap">
-                    @foreach($meses as $m)
-                    @php $pct = $maxClientes > 0 ? round(($m['clientes'] / $maxClientes) * 100) : 0; @endphp
-                    <div class="bar-col">
-                        <div class="bar-value">
-                            @if($m['clientes'] > 0){{ $m['clientes'] }}@endif
-                        </div>
-                        <div class="bar-fill" style="height:{{ $pct }}%; background:#6f42c1"
-                             title="{{ $m['label'] }}: {{ $m['clientes'] }} clientes">
-                        </div>
-                        <div class="bar-label">{{ $m['label'] }}</div>
-                    </div>
-                    @endforeach
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 
 <div class="mt-2 no-print">
     <a href="{{ route('admin.reportes.index') }}" class="btn btn-outline-secondary btn-sm">

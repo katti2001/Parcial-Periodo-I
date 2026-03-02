@@ -154,21 +154,7 @@ class ReporteController extends Controller
             ]);
         $totalDevoluciones = $devolucionesPorMotivo->sum('cantidad') ?: 1;
 
-        // Nuevos clientes por mes — últimos 12 meses
-        $clientesRaw = Usuario::select(
-                DB::raw("DATE_FORMAT(fecha_registro, '%Y-%m') as mes"),
-                DB::raw('COUNT(*) as cantidad')
-            )
-            ->where('rol', 'cliente')
-            ->where('fecha_registro', '>=', now()->subMonths(11)->startOfMonth())
-            ->groupBy('mes')
-            ->pluck('cantidad', 'mes');
 
-        foreach ($meses as $key => &$m) {
-            $m['clientes'] = (int) ($clientesRaw[$key] ?? 0);
-        }
-        unset($m);
-        $maxClientes = max(array_column($meses, 'clientes')) ?: 1;
 
         // KPIs resumen
         $kpis = [
@@ -192,7 +178,6 @@ class ReporteController extends Controller
             'pedidosPorEstado', 'totalPedidos',
             'topProductos', 'maxUnidades',
             'devolucionesPorMotivo', 'totalDevoluciones',
-            'maxClientes', 'kpis'
         ));
     }
 }
