@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Cupon;
 use App\Models\DetalleCompra;
 use App\Models\DetallePedido;
+use App\Models\DetalleFactura;
 use App\Models\Kardex;
+use App\Models\Factura;
 use App\Models\Pedido;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -237,6 +239,34 @@ class CheckoutController extends Controller
                     ]);
                 }
 
+                // 4. Crear factura y sus líneas
+                $factura = Factura::create([
+                    'id_pedido'        => $pedido->id_pedido,
+                    'id_usuario'       => Auth::id(),
+                    'numero'           => 'FAC-' . now()->format('Ym') . '-' . $pedido->id_pedido,
+                    'estado'           => 'emitida',
+                    'fecha_emision'    => now(),
+                    'fecha_vencimiento'=> now()->addDays(15),
+                    'moneda'           => 'USD',
+                    'subtotal'         => $subtotal,
+                    'descuento'        => $monto_descuento,
+                    'impuesto'         => 0,
+                    'costo_envio'      => 0,
+                    'total'            => $total,
+                    'notas'            => null,
+                ]);
+
+                foreach ($carrito as $item) {
+                    DetalleFactura::create([
+                        'id_factura'      => $factura->id_factura,
+                        'id_producto'     => $item['id_producto'],
+                        'id_talla'        => $item['id_talla'],
+                        'cantidad'        => $item['cantidad'],
+                        'precio_unitario' => $item['precio'],
+                        'total_linea'     => $item['precio'] * $item['cantidad'],
+                    ]);
+                }
+
                 return $pedido->id_pedido;
             });
 
@@ -262,6 +292,8 @@ class CheckoutController extends Controller
             ->where('id_usuario', Auth::id())
             ->findOrFail($id);
 
-        return view('checkout.confirmacion', compact('pedido'));
+        $factura = Factura::where('id_pedido', $pedido->id_pedido)->first();
+
+        return view('checkout.confirmacion', compact('pedido', 'factura'));
     }
 }

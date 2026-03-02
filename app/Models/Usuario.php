@@ -25,6 +25,7 @@ use Illuminate\Notifications\Notifiable;
  * @property Carbon|null $fecha_registro
  *
  * @property Collection|Pedido[] $pedidos
+ * @property Collection|Factura[] $facturas
  *
  * @package App\Models
  */
@@ -70,8 +71,13 @@ class Usuario extends Authenticatable
 		return $this->rol === 'cliente';
 	}
 
-	public function pedidos()
-	{
-		return $this->hasMany(Pedido::class, 'id_usuario');
-	}
+    public function pedidos()
+    {
+        return $this->hasMany(Pedido::class, 'id_usuario');
+    }
+
+    public function facturas()
+    {
+        return $this->hasMany(Factura::class, 'id_usuario');
+    }
 }

@@ -7,6 +7,9 @@
     <div class="display-1 text-success"><i class="bi bi-check-circle-fill"></i></div>
     <h2 class="mt-3">¡Pago realizado con éxito!</h2>
     <p class="text-muted">Pedido #{{ $pedido->id_pedido }} — {{ $pedido->fecha_pedido->format('d/m/Y H:i') }}</p>
+    @if($factura)
+    <p class="text-muted">Factura {{ $factura->numero }} <a href="{{ route('facturas.show', $factura->id_factura) }}">ver</a></p>
+    @endif
 </div>
 
 <div class="row justify-content-center">
