@@ -116,16 +116,19 @@ class ReporteController extends Controller
             $key = now()->subMonths($i)->format('Y-m');
             $meses[$key] = [
                 'label'    => now()->subMonths($i)->locale('es')->isoFormat('MMM YYYY'),
-                'total'    => $ventasPorMes->get($key)?->total ?? 0,
-                'cantidad' => $ventasPorMes->get($key)?->cantidad ?? 0,
+                'total'    => (float) ($ventasPorMes->get($key)?->total ?? 0),
+                'cantidad' => (int)   ($ventasPorMes->get($key)?->cantidad ?? 0),
             ];
         }
+        $maxVenta = max(array_column($meses, 'total')) ?: 1;
 
         // Pedidos por estado
         $pedidosPorEstado = Pedido::select('estado_pedido', DB::raw('COUNT(*) as cantidad'))
             ->whereNotNull('estado_pedido')
             ->groupBy('estado_pedido')
-            ->pluck('cantidad', 'estado_pedido');
+            ->orderByDesc('cantidad')
+            ->get();
+        $totalPedidos = $pedidosPorEstado->sum('cantidad') ?: 1;
 
         // Top 8 productos más vendidos (todos los tiempos)
         $topProductos = DetallePedido::select(
@@ -138,16 +141,20 @@ class ReporteController extends Controller
             ->orderByDesc('total_unidades')
             ->limit(8)
             ->get();
+        $maxUnidades = $topProductos->max('total_unidades') ?: 1;
 
-        // Devoluciones por motivo (con etiqueta legible)
+        // Devoluciones por motivo
         $devolucionesPorMotivo = Devolucion::select('motivo', DB::raw('COUNT(*) as cantidad'))
             ->groupBy('motivo')
+            ->orderByDesc('cantidad')
             ->get()
-            ->mapWithKeys(fn($row) => [
-                Devolucion::MOTIVOS[$row->motivo] ?? $row->motivo => $row->cantidad
+            ->map(fn($row) => [
+                'label'    => Devolucion::MOTIVOS[$row->motivo] ?? $row->motivo,
+                'cantidad' => $row->cantidad,
             ]);
+        $totalDevoluciones = $devolucionesPorMotivo->sum('cantidad') ?: 1;
 
-        // Nuevos clientes por mes — últimos 12 meses (alineados con $meses)
+        // Nuevos clientes por mes — últimos 12 meses
         $clientesRaw = Usuario::select(
                 DB::raw("DATE_FORMAT(created_at, '%Y-%m') as mes"),
                 DB::raw('COUNT(*) as cantidad')
@@ -155,16 +162,13 @@ class ReporteController extends Controller
             ->where('rol', 'cliente')
             ->where('created_at', '>=', now()->subMonths(11)->startOfMonth())
             ->groupBy('mes')
-            ->orderBy('mes')
             ->pluck('cantidad', 'mes');
 
-        $clientesPorMes = collect(array_keys($meses))
-            ->map(fn($key) => (int) ($clientesRaw[$key] ?? 0))
-            ->values();
-
-        // Top productos: etiquetas limpias para JS
-        $topProductosLabels   = $topProductos->map(fn($p) => optional($p->producto)->nombre ?? '(eliminado)')->values();
-        $topProductosUnidades = $topProductos->pluck('total_unidades')->values();
+        foreach ($meses as $key => &$m) {
+            $m['clientes'] = (int) ($clientesRaw[$key] ?? 0);
+        }
+        unset($m);
+        $maxClientes = max(array_column($meses, 'clientes')) ?: 1;
 
         // KPIs resumen
         $kpis = [
@@ -184,8 +188,11 @@ class ReporteController extends Controller
         ];
 
         return view('admin.reportes.estadisticas', compact(
-            'meses', 'pedidosPorEstado', 'topProductosLabels', 'topProductosUnidades',
-            'devolucionesPorMotivo', 'clientesPorMes', 'kpis'
+            'meses', 'maxVenta',
+            'pedidosPorEstado', 'totalPedidos',
+            'topProductos', 'maxUnidades',
+            'devolucionesPorMotivo', 'totalDevoluciones',
+            'maxClientes', 'kpis'
         ));
     }
 }
