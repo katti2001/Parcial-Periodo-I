@@ -30,6 +30,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property Usuario|null $usuario
  * @property Cupon|null $cupon
  * @property Collection|DetallePedido[] $detalle_pedidos
+ * @property Factura|null $factura
  *
  * @package App\Models
  */
@@ -74,13 +75,18 @@ class Pedido extends Model
 		return $this->belongsTo(Cupon::class, 'id_cupon');
 	}
 
-	public function detalle_pedidos()
-	{
-		return $this->hasMany(DetallePedido::class, 'id_pedido');
-	}
+    public function detalle_pedidos()
+    {
+        return $this->hasMany(DetallePedido::class, 'id_pedido');
+    }
 
-	public function devolucion()
-	{
-		return $this->hasOne(Devolucion::class, 'id_pedido');
-	}
+    public function devolucion()
+    {
+        return $this->hasOne(Devolucion::class, 'id_pedido');
+    }
+
+    public function factura()
+    {
+        return $this->hasOne(Factura::class, 'id_pedido');
+    }
 }

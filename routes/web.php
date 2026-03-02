@@ -17,6 +17,8 @@ use App\Http\Controllers\Almacen\ProveedorController as AlmacenProveedor;
 use App\Http\Controllers\Almacen\CompraController as AlmacenCompra;
 use App\Http\Controllers\Almacen\KardexController as AlmacenKardex;
 use App\Http\Controllers\Almacen\AsistenteController as AlmacenAsistente;
+use App\Http\Controllers\FacturaController;
+use App\Http\Controllers\Admin\FacturaController as AdminFactura;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -68,6 +70,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/mis-pedidos',                          [DevolucionController::class, 'index'])->name('pedidos.historial');
     Route::get('/mis-pedidos/{id}',                     [DevolucionController::class, 'show'])->name('pedidos.show');
 
+    // Facturas del cliente
+    Route::get('/facturas/{id}',                        [FacturaController::class, 'show'])->name('facturas.show');
+
     // ─── Devoluciones del cliente ─────────────────────────────────────────────
     Route::get('/devoluciones/{id_pedido}/crear',       [DevolucionController::class, 'create'])->name('devoluciones.create');
     Route::post('/devoluciones',                        [DevolucionController::class, 'store'])->name('devoluciones.store');
@@ -94,6 +99,10 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/devoluciones/{id}',                    [AdminDevolucion::class, 'show'])->name('devoluciones.show');
     Route::patch('/devoluciones/{id}/aprobar',          [AdminDevolucion::class, 'aprobar'])->name('devoluciones.aprobar');
     Route::patch('/devoluciones/{id}/rechazar',         [AdminDevolucion::class, 'rechazar'])->name('devoluciones.rechazar');
+
+    // Facturas
+    Route::get('/facturas',                             [AdminFactura::class, 'index'])->name('facturas.index');
+    Route::get('/facturas/{id}',                        [AdminFactura::class, 'show'])->name('facturas.show');
 
     // Cupones
     Route::get('/cupones',                              [AdminCupon::class, 'index'])->name('cupones.index');
