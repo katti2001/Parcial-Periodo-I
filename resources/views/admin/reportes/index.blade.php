@@ -4,6 +4,20 @@
 @section('header', 'Reportes')
 
 @section('content')
+{{-- Estadísticas — tarjeta destacada --}}
+<div class="card shadow-sm mb-4 border-0" style="background: #212529; color: #fff;">
+    <div class="card-body d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 p-4">
+        <div>
+            <span class="badge bg-light text-dark mb-2">Nuevo</span>
+            <h5 class="fw-bold mb-1">Estadísticas con gráficas</h5>
+            <p class="mb-0 opacity-75 small">Visualiza ventas por mes, pedidos por estado, top productos y devoluciones por motivo en un solo panel interactivo.</p>
+        </div>
+        <a href="{{ route('admin.reportes.estadisticas') }}" class="btn btn-light flex-shrink-0">
+            <i class="bi bi-graph-up me-1"></i> Ver estadísticas
+        </a>
+    </div>
+</div>
+
 <div class="row g-4">
     <div class="col-md-4">
         <div class="card shadow-sm h-100">
