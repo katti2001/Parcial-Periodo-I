@@ -168,7 +168,7 @@
                                 </span>
                             @endif
                         </div>
-                        <p class="precio mt-auto mb-0">${{ number_format($producto->precio_venta_base, 2) }}</p>
+                        <p class="precio mt-auto mb-0">${{ number_format($producto->precio_calculado, 2) }}</p>
                     </div>
                     <div class="card-footer bg-transparent border-0 pb-3">
                         <a href="{{ route('catalogo.show', $producto->id_producto) }}" class="btn btn-dark btn-sm w-100">

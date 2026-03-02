@@ -86,6 +86,7 @@
                         <th style="width:130px">Tipo</th>
                         <th style="min-width:260px">Producto</th>
                         <th style="min-width:110px">Talla</th>
+                        <th style="min-width:130px">SKU Lote</th>
                         <th style="min-width:90px">Cantidad</th>
                         <th style="min-width:110px">Costo unit.</th>
                         <th style="min-width:110px">Precio venta</th>
@@ -98,7 +99,7 @@
                 </tbody>
                 <tfoot>
                     <tr>
-                        <td colspan="6" class="text-end fw-bold">Total compra:</td>
+                        <td colspan="7" class="text-end fw-bold">Total compra:</td>
                         <td class="text-end fw-bold" id="totalGeneral">$0.00</td>
                         <td></td>
                     </tr>
@@ -372,6 +373,10 @@ function buildFila(idx, esPrimera) {
     <select name="items[${idx}][id_talla]" class="form-select form-select-sm" required>
       <option value="">Talla...</option>${buildOptsTalla()}
     </select>
+  </td>
+  <td>
+    <input type="text" name="items[${idx}][sku_lote]"
+           class="form-control form-control-sm" placeholder="Opcional" maxlength="50">
   </td>
   <td>
     <input type="number" name="items[${idx}][cantidad_comprada]"

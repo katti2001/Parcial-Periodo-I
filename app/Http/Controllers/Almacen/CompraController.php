@@ -81,6 +81,7 @@ class CompraController extends Controller
             'items.*.id_equipo'         => 'nullable|integer|exists:equipos,id_equipo',
             // comunes
             'items.*.id_talla'          => 'required|exists:tallas,id_talla',
+            'items.*.sku_lote'          => 'nullable|string|max:50',
             'items.*.cantidad_comprada' => 'required|integer|min:1',
             'items.*.costo_unitario'    => 'required|numeric|min:0',
             // imágenes: máx 5 por slot, cada una imagen válida ≤ 5 MB
@@ -205,6 +206,7 @@ class CompraController extends Controller
                 $itemsResueltos[] = [
                     'id_producto'       => $idProducto,
                     'id_talla'          => $item['id_talla'],
+                    'sku_lote'          => $item['sku_lote'] ?? null,
                     'cantidad_comprada' => $cantidad,
                     'costo_unitario'    => $costo,
                 ];
@@ -223,6 +225,7 @@ class CompraController extends Controller
                     'id_compra'         => $compra->id_compra,
                     'id_producto'       => $item['id_producto'],
                     'id_talla'          => $item['id_talla'],
+                    'sku_lote'          => $item['sku_lote'],
                     'cantidad_comprada' => $item['cantidad_comprada'],
                     'cantidad_restante' => $item['cantidad_comprada'],
                     'costo_unitario'    => $item['costo_unitario'],

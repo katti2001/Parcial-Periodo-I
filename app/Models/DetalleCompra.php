@@ -43,6 +43,7 @@ class DetalleCompra extends Model
         'id_compra',
         'id_producto',
         'id_talla',
+        'sku_lote',
         'cantidad_comprada',
         'cantidad_restante',
         'costo_unitario'

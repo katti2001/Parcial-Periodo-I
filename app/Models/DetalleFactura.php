@@ -26,7 +26,6 @@ class DetalleFactura extends Model
         'id_talla',
         'cantidad',
         'precio_unitario',
-        'total_linea',
     ];
 
     public function factura(): BelongsTo

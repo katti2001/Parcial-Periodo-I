@@ -108,7 +108,7 @@
                         <tr>
                             <th class="ps-3" style="width:90px">Imagen</th>
                             <th>Producto</th>
-                            <th>Talla</th>
+                            <th>Talla / Lote</th>
                             <th class="text-center">Comprado</th>
                             <th class="text-center">Stock<br>restante</th>
                             <th class="text-end">Costo</th>
@@ -199,6 +199,9 @@
                                 <span class="badge bg-dark" style="font-size:.8rem;">
                                     {{ optional($d->talla)->nombre ?? '—' }}
                                 </span>
+                                @if($d->sku_lote)
+                                    <div class="mt-1 small text-muted">Lote: {{ $d->sku_lote }}</div>
+                                @endif
                             </td>
 
                             {{-- Cantidad comprada --}}

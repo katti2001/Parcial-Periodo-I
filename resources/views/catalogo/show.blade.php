@@ -98,7 +98,7 @@
             <span class="badge bg-dark mb-1"><i class="bi bi-shield me-1"></i>{{ $producto->equipo->nombre }}</span>
         @endif
 
-        <p class="precio-grande mt-3">${{ number_format($producto->precio_venta_base, 2) }}</p>
+        <p class="precio-grande mt-3">${{ number_format($producto->precio_calculado, 2) }}</p>
 
         @if($producto->descripcion)
             <p class="text-muted">{{ $producto->descripcion }}</p>
