@@ -20,6 +20,7 @@ use PaypalServerSdkLib\Models\Builders\AmountWithBreakdownBuilder;
 use PaypalServerSdkLib\Models\Builders\OrderRequestBuilder;
 use PaypalServerSdkLib\Models\Builders\PurchaseUnitRequestBuilder;
 use PaypalServerSdkLib\Models\CheckoutPaymentIntent;
+use PaypalServerSdkLib\Exceptions\ErrorException;
 
 class CheckoutController extends Controller
 {
@@ -277,9 +278,27 @@ class CheckoutController extends Controller
                 'success'   => true,
                 'pedido_id' => $pedidoId,
             ]);
+        } catch (ErrorException $e) {
+            // Error devuelto por la API de PayPal (400, 401, 403, 404, 422, 500)
+            Log::error('PayPal capturarOrden — API error', [
+                'name'     => $e->getName(),
+                'message'  => $e->getMessageProperty(),
+                'debug_id' => $e->getDebugId(),
+                'details'  => $e->getDetails(),
+                'http_status' => $e->hasResponse() ? $e->getHttpResponse()->getStatusCode() : null,
+            ]);
+            return response()->json([
+                'error' => 'Error de PayPal: ' . ($e->getMessageProperty() ?: $e->getName()),
+            ], 500);
         } catch (\Exception $e) {
-            Log::error('PayPal capturarOrden error: ' . $e->getMessage());
-            return response()->json(['error' => 'Error al capturar pago'], 500);
+            Log::error('PayPal capturarOrden error', [
+                'message'  => $e->getMessage(),
+                'class'    => get_class($e),
+                'file'     => $e->getFile() . ':' . $e->getLine(),
+                'previous' => $e->getPrevious() ? $e->getPrevious()->getMessage() : null,
+                'trace'    => $e->getTraceAsString(),
+            ]);
+            return response()->json(['error' => 'Error al capturar pago: ' . $e->getMessage()], 500);
         }
     }
 
