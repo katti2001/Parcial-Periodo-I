@@ -72,10 +72,10 @@
                         </div>
                         <div class="text-end">
                             <p class="mb-0 fw-semibold">
-                                ${{ number_format($detalle->precio_venta_unitario * $detalle->cantidad, 2) }}
+                                ${{ number_format($detalle->precio_unitario * $detalle->cantidad, 2) }}
                             </p>
                             <small class="text-muted">
-                                ${{ number_format($detalle->precio_venta_unitario, 2) }} c/u
+                                ${{ number_format($detalle->precio_unitario, 2) }} c/u
                             </small>
                         </div>
                     </div>

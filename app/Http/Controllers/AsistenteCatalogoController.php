@@ -24,44 +24,45 @@ class AsistenteCatalogoController extends Controller
             ->get();
 
         // ── 2. Stock disponible por producto ──────────────────────────────────
-        $stockMap = DetalleCompra::select('dc.id_producto', DB::raw('SUM(dc.cantidad_restante) as total'))
-            ->from('detalle_compras as dc')
-            ->join('compras as c', 'c.id_compra', '=', 'dc.id_compra')
-            ->where('c.estado', 'recibido')
-            ->groupBy('dc.id_producto')
-            ->pluck('total', 'dc.id_producto');
+        $detallesActivos = DetalleCompra::where('cantidad_restante', '>', 0)
+            ->whereHas('compra', fn($q) => $q->where('estado', 'recibido'))
+            ->orderBy('id_detalle_compra', 'asc')
+            ->get();
 
-        // ── 3. Tallas disponibles por producto ────────────────────────────────
-        $tallasMap = DetalleCompra::select(
-                'dc.id_producto',
-                'dc.id_talla',
-                DB::raw('SUM(dc.cantidad_restante) as stock_talla')
-            )
-            ->from('detalle_compras as dc')
-            ->join('compras as c', 'c.id_compra', '=', 'dc.id_compra')
-            ->where('c.estado', 'recibido')
-            ->groupBy('dc.id_producto', 'dc.id_talla')
-            ->having('stock_talla', '>', 0)
-            ->get()
-            ->groupBy('id_producto');
+        $stockMap = [];
+        $tallasCollection = [];
+
+        foreach ($detallesActivos as $d) {
+            // Al estar ordenados por id asc, el primer registro por producto-talla es el lote actual
+            if (!isset($tallasCollection[$d->id_producto][$d->id_talla])) {
+                $tallasCollection[$d->id_producto][$d->id_talla] = $d->cantidad_restante;
+                $stockMap[$d->id_producto] = ($stockMap[$d->id_producto] ?? 0) + $d->cantidad_restante;
+            }
+        }
 
         $todasTallas = Talla::pluck('nombre', 'id_talla');
 
         // ── 4. Construir catálogo para el prompt ──────────────────────────────
-        $catalogo = $productos->map(function ($p) use ($stockMap, $tallasMap, $todasTallas) {
-            $stockTotal = (int) ($stockMap[$p->id_producto] ?? 0);
+        $catalogo = $productos->map(function ($p) use ($stockMap, $tallasCollection, $todasTallas) {
+            $stockTotal = $stockMap[$p->id_producto] ?? 0;
+            $categoria  = $p->categoria?->nombre ?? 'Sin categoría';
+            $equipo     = $p->equipo?->nombre    ?? 'Sin equipo';
 
-            $tallasDisp = collect($tallasMap[$p->id_producto] ?? [])
-                ->map(fn($t) => $todasTallas[$t->id_talla] ?? '?')
-                ->values()
-                ->toArray();
+            $tallasInfo = [];
+            if (isset($tallasCollection[$p->id_producto])) {
+                foreach ($tallasCollection[$p->id_producto] as $idTalla => $cant) {
+                    $nombreTalla = $todasTallas[$idTalla] ?? $idTalla;
+                    $tallasInfo[] = "{$nombreTalla} (cant: {$cant})";
+                }
+            }
+            $tallasDisp = !empty($tallasInfo) ? implode(', ', $tallasInfo) : 'Sin stock';
 
             return [
                 'id'        => $p->id_producto,
                 'nombre'    => $p->nombre,
                 'categoria' => $p->categoria?->nombre ?? 'Sin categoría',
                 'equipo'    => $p->equipo?->nombre    ?? 'Sin equipo',
-                'precio'    => $p->precio_venta_base,
+                'precio'    => $p->precio_calculado,
                 'stock'     => $stockTotal,
                 'tallas'    => $tallasDisp,
                 'url'       => route('catalogo.show', $p->id_producto),

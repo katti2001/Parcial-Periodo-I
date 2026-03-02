@@ -101,6 +101,10 @@
                 },
             })
             .then(function(res) {
+                if (res.status === 409) {
+                    window.location.reload();
+                    throw new Error('El inventario fue actualizado. Recargando carrito...');
+                }
                 if (!res.ok) {
                     return res.text().then(function(t) { throw new Error('Server error ' + res.status + ': ' + t.substring(0, 200)); });
                 }

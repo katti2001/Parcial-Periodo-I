@@ -10,14 +10,16 @@ use Illuminate\Http\Request;
 class CarritoController extends Controller
 {
     /**
-     * Calcula el stock disponible de un producto en una talla específica.
-     * Stock = suma de cantidad_restante en detalle_compras.
+     * Calcula el stock disponible de un producto en una talla específica,
+     * basado ÚNICAMENTE en el lote actual (FIFO) para evitar cruces.
      */
     private function stockDisponible(int $idProducto, int $idTalla): int
     {
         return (int) DetalleCompra::where('id_producto', $idProducto)
             ->where('id_talla', $idTalla)
-            ->sum('cantidad_restante');
+            ->where('cantidad_restante', '>', 0)
+            ->orderBy('id_detalle_compra', 'asc')
+            ->value('cantidad_restante') ?? 0;
     }
 
     /**
@@ -26,6 +28,39 @@ class CarritoController extends Controller
     public function index()
     {
         $carrito = session('carrito', []);
+
+        // Actualizar precios dinámicos y restringir al stock del lote actual
+        $cambios = false;
+        foreach ($carrito as $clave => &$item) {
+            $producto = Producto::find($item['id_producto']);
+            if (!$producto) {
+                unset($carrito[$clave]);
+                $cambios = true;
+                continue;
+            }
+
+            // Actualizar precio a la cotización actual
+            if ($item['precio'] != $producto->precio_calculado) {
+                $item['precio'] = $producto->precio_calculado;
+                $cambios = true;
+            }
+
+            // Validar que la cantidad no sobrepase al Lote Actual
+            $stockActual = $this->stockDisponible($item['id_producto'], $item['id_talla']);
+            if ($item['cantidad'] > $stockActual) {
+                $cambios = true;
+                if ($stockActual == 0) {
+                    unset($carrito[$clave]);
+                } else {
+                    $item['cantidad'] = $stockActual;
+                }
+            }
+        }
+
+        if ($cambios) {
+            session(['carrito' => $carrito]);
+        }
+
         $total   = collect($carrito)->sum(fn($item) => $item['precio'] * $item['cantidad']);
 
         return view('carrito.index', compact('carrito', 'total'));
@@ -71,7 +106,7 @@ class CarritoController extends Controller
                 'id_talla'    => $talla->id_talla,
                 'nombre'      => $producto->nombre,
                 'talla'       => $talla->nombre,
-                'precio'      => $producto->precio_venta_base,
+                'precio'      => $producto->precio_calculado,
                 'cantidad'    => $cantidadTotal,
                 'imagen'      => optional($producto->imagenes_productos->first())->url_imagen,
             ];

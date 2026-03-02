@@ -83,12 +83,19 @@ class CatalogoController extends Controller
 
         $tallas = Talla::orderBy('nombre')->get();
 
-        // Stock disponible por talla sumando todos los productos del grupo
-        $stockPorTalla = DetalleCompra::whereIn('id_producto', $idsGrupo)
-            ->where('cantidad_restante', '>', 0)
-            ->selectRaw('id_talla, SUM(cantidad_restante) as total')
-            ->groupBy('id_talla')
-            ->pluck('total', 'id_talla');
+        // Stock disponible por talla, restringido al Lote Actual (FIFO) como requerido
+        $stockPorTalla = [];
+        foreach ($tallas as $talla) {
+            $stockActual = (int) DetalleCompra::whereIn('id_producto', $idsGrupo)
+                ->where('id_talla', $talla->id_talla)
+                ->where('cantidad_restante', '>', 0)
+                ->orderBy('id_detalle_compra', 'asc')
+                ->value('cantidad_restante') ?? 0;
+
+            if ($stockActual > 0) {
+                $stockPorTalla[$talla->id_talla] = $stockActual;
+            }
+        }
 
         // Para el carrito usamos el id_producto del representante ($producto),
         // pero pasamos también los ids del grupo por si el checkout necesita FIFO entre ellos

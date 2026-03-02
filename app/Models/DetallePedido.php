@@ -35,7 +35,7 @@ class DetallePedido extends Model
 		'id_producto'           => 'int',
 		'id_talla'              => 'int',
 		'cantidad'              => 'int',
-		'precio_venta_unitario' => 'float'
+		'precio_unitario' => 'float'
 	];
 
 	protected $fillable = [
@@ -43,7 +43,7 @@ class DetallePedido extends Model
 		'id_producto',
 		'id_talla',
 		'cantidad',
-		'precio_venta_unitario'
+		'precio_unitario'
 	];
 
 	public function pedido()

@@ -25,7 +25,7 @@
                         <span class="fw-semibold">{{ optional($detalle->producto)->nombre ?? '(producto eliminado)' }}</span>
                         <small class="text-muted ms-2">Talla: {{ optional($detalle->talla)->nombre ?? '—' }} × {{ $detalle->cantidad }}</small>
                     </div>
-                    <span>${{ number_format($detalle->precio_venta_unitario * $detalle->cantidad, 2) }}</span>
+                    <span>${{ number_format($detalle->precio_unitario * $detalle->cantidad, 2) }}</span>
                 </li>
                 @endforeach
             </ul>

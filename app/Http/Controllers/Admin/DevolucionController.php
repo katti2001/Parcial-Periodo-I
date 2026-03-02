@@ -71,7 +71,7 @@ class DevolucionController extends Controller
             $montoReembolso = 0;
             foreach ($devolucion->detalles as $detalle) {
                 $dp = $detalle->detallePedido;
-                $montoReembolso += $detalle->cantidad_devuelta * $dp->precio_venta_unitario;
+                $montoReembolso += $detalle->cantidad_devuelta * $dp->precio_unitario;
             }
 
             // 2. Restaurar stock solo si el motivo NO es producto_defectuoso

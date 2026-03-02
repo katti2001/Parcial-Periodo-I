@@ -47,12 +47,49 @@ class CheckoutController extends Controller
     public function index(Request $request)
     {
         $carrito = session('carrito', []);
-
+        
         if (empty($carrito)) {
-            return redirect()->route('carrito.index')
-                ->with('error', 'Tu carrito está vacío.');
+        return redirect()->route('carrito.index')
+->with('error', 'Tu carrito está vacío.');
         }
-
+            
+                // Re-validar precios y stock contra el lote actual antes de mostrar el checkout
+        $cambios = false;
+foreach ($carrito as $clave => &$item) {
+        $producto = \App\Models\Producto::find($item['id_producto']);
+        if (!$producto) {
+        unset($carrito[$clave]);
+        $cambios = true;
+        continue;
+        }
+        
+        if ($item['precio'] != $producto->precio_calculado) {
+        $item['precio'] = $producto->precio_calculado;
+        $cambios = true;
+        }
+        
+        $stockActual = (int) \App\Models\DetalleCompra::where('id_producto', $item['id_producto'])
+        ->where('id_talla', $item['id_talla'])
+        ->where('cantidad_restante', '>', 0)
+        ->orderBy('id_detalle_compra', 'asc')
+        ->value('cantidad_restante') ?? 0;
+        
+        if ($item['cantidad'] > $stockActual) {
+        $cambios = true;
+        if ($stockActual == 0) {
+        unset($carrito[$clave]);
+        } else {
+        $item['cantidad'] = $stockActual;
+        }
+        }
+        }
+        
+        if ($cambios) {
+        session(['carrito' => $carrito]);
+        return redirect()->route('carrito.index')
+        ->with('error', 'Algunos productos en tu carrito han cambiado de precio o disponibilidad por actualización de inventario.');
+        }
+        
         $subtotal        = collect($carrito)->sum(fn($i) => $i['precio'] * $i['cantidad']);
         $monto_descuento = 0.0;
         $cupon           = null;
@@ -106,6 +143,29 @@ class CheckoutController extends Controller
 
         if (empty($carrito)) {
             return response()->json(['error' => 'Carrito vacío'], 400);
+        }
+
+        // Validación extra de seguridad (previniendo cambios entre cargar checkout y dar click en paypal)
+        $cambios = false;
+        foreach ($carrito as $clave => &$item) {
+            $producto = \App\Models\Producto::find($item['id_producto']);
+            if (!$producto || $item['precio'] != $producto->precio_calculado) {
+                $cambios = true;
+                break;
+            }
+            $stockActual = (int) \App\Models\DetalleCompra::where('id_producto', $item['id_producto'])
+                ->where('id_talla', $item['id_talla'])
+                ->where('cantidad_restante', '>', 0)
+                ->orderBy('id_detalle_compra', 'asc')
+                ->value('cantidad_restante') ?? 0;
+            if ($item['cantidad'] > $stockActual) {
+                $cambios = true;
+                break;
+            }
+        }
+
+        if ($cambios) {
+            return response()->json(['error' => 'RELOAD_CART'], 409); // Frontend puede recargar y mostrar alerta
         }
 
         $subtotal        = collect($carrito)->sum(fn($i) => $i['precio'] * $i['cantidad']);
@@ -207,7 +267,7 @@ class CheckoutController extends Controller
                         'id_producto'           => $item['id_producto'],
                         'id_talla'              => $item['id_talla'],
                         'cantidad'              => $item['cantidad'],
-                        'precio_venta_unitario' => $item['precio'],
+                        'precio_unitario'       => $item['precio'],
                     ]);
 
                     // Descontar cantidad_restante FIFO
@@ -264,7 +324,6 @@ class CheckoutController extends Controller
                         'id_talla'        => $item['id_talla'],
                         'cantidad'        => $item['cantidad'],
                         'precio_unitario' => $item['precio'],
-                        'total_linea'     => $item['precio'] * $item['cantidad'],
                     ]);
                 }
 

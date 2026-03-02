@@ -123,13 +123,13 @@
                         <small class="text-muted">
                             Talla: {{ optional($dp->talla)->nombre ?? '—' }}
                             &nbsp;|&nbsp;
-                            Precio unit.: ${{ number_format($dp->precio_venta_unitario, 2) }}
+                            Precio unit.: ${{ number_format($dp->precio_unitario, 2) }}
                         </small>
                     </div>
                     <div class="text-end">
                         <span class="badge bg-secondary">{{ $detalle->cantidad_devuelta }} ud(s)</span>
                         <p class="mb-0 small fw-semibold">
-                            ${{ number_format($detalle->cantidad_devuelta * $dp->precio_venta_unitario, 2) }}
+                            ${{ number_format($detalle->cantidad_devuelta * $dp->precio_unitario, 2) }}
                         </p>
                     </div>
                 </li>
@@ -139,7 +139,7 @@
             <div class="card-footer text-end fw-bold">
                 @php
                     $totalEstimado = $devolucion->detalles->sum(function($d) {
-                        return $d->cantidad_devuelta * optional($d->detallePedido)->precio_venta_unitario;
+                        return $d->cantidad_devuelta * optional($d->detallePedido)->precio_unitario;
                     });
                 @endphp
                 Reembolso estimado: ${{ number_format($totalEstimado, 2) }}
