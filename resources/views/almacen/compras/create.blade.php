@@ -86,7 +86,6 @@
                         <th style="width:130px">Tipo</th>
                         <th style="min-width:260px">Producto</th>
                         <th style="min-width:110px">Talla</th>
-                        <th style="min-width:130px">SKU Lote</th>
                         <th style="min-width:90px">Cantidad</th>
                         <th style="min-width:110px">Costo unit.</th>
                         <th style="min-width:110px">Precio venta</th>
@@ -99,7 +98,7 @@
                 </tbody>
                 <tfoot>
                     <tr>
-                        <td colspan="7" class="text-end fw-bold">Total compra:</td>
+                        <td colspan="6" class="text-end fw-bold">Total compra:</td>
                         <td class="text-end fw-bold" id="totalGeneral">$0.00</td>
                         <td></td>
                     </tr>
@@ -249,10 +248,12 @@ function recalcularTotales() {
         fila.querySelector('.td-subtotal').textContent = '$' + sub.toFixed(2);
         total += sub;
 
-        // Recalcular precio venta según margen (aplica tanto a nuevos como a existentes)
-        const margen  = getMargen();
-        const pvInput = fila.querySelector('.inp-precio-venta');
-        if (pvInput) pvInput.value = (costo * (1 + margen / 100)).toFixed(2);
+        // Recalcular precio venta si es producto nuevo
+        if (fila.querySelector('.inp-es-nuevo').value === '1') {
+            const margen  = getMargen();
+            const pvInput = fila.querySelector('.inp-precio-venta');
+            if (pvInput) pvInput.value = (costo * (1 + margen / 100)).toFixed(2);
+        }
     });
     document.getElementById('totalGeneral').textContent = '$' + total.toFixed(2);
 }
@@ -373,10 +374,6 @@ function buildFila(idx, esPrimera) {
     </select>
   </td>
   <td>
-    <input type="text" name="items[${idx}][sku_lote]"
-           class="form-control form-control-sm" placeholder="Opcional" maxlength="50">
-  </td>
-  <td>
     <input type="number" name="items[${idx}][cantidad_comprada]"
            class="form-control form-control-sm inp-cantidad" min="1" value="1" required>
   </td>
@@ -416,13 +413,11 @@ function encontrarLider(fila) {
     return lider;
 }
 
-// ── Helpers para leer texto visible de un <select> dado su value ─────────────
 function textoDeSelect(selectEl, valor) {
     const opt = Array.from(selectEl.options).find(o => o.value === String(valor));
     return opt ? opt.textContent.trim() : '—';
 }
 
-// ── Activar modo "mismo producto" en una fila ─────────────────────────────────
 function activarMismo(fila) {
     fila.querySelector('.inp-mismo-producto').value = '1';
     fila.querySelector('.campos-nuevo-producto').classList.add('d-none');
@@ -535,13 +530,6 @@ function bindImagenPreview(fila) {
     // Almacén local de { file, dataUrl }
     let slides = [];
 
-    // Sincroniza el array slides con el FileList real del input via DataTransfer
-    function syncInput() {
-        const dt = new DataTransfer();
-        slides.forEach(s => dt.items.add(s.file));
-        inputFile.files = dt.files;
-    }
-
     function renderSlides() {
         carousel.innerHTML = '';
         slides.forEach((s, i) => {
@@ -553,7 +541,6 @@ function bindImagenPreview(fila) {
                 <button type="button" class="btn-rm" title="Quitar" data-i="${i}">×</button>`;
             slide.querySelector('.btn-rm').addEventListener('click', () => {
                 slides.splice(i, 1);
-                syncInput();
                 renderSlides();
             });
             carousel.appendChild(slide);
@@ -590,15 +577,12 @@ function bindImagenPreview(fila) {
             reader.onload = e => {
                 slides.push({ file, dataUrl: e.target.result });
                 loaded++;
-                if (loaded === toLoad.length) {
-                    syncInput();
-                    renderSlides();
-                }
+                if (loaded === toLoad.length) renderSlides();
             };
             reader.readAsDataURL(file);
         });
 
-        this.value = ''; // reset para permitir volver a seleccionar el mismo archivo
+        this.value = ''; // reset para permitir volver a seleccionar
     });
 
     renderSlides(); // estado inicial
@@ -700,11 +684,13 @@ document.getElementById('btnAgregarFila').addEventListener('click', () => {
 document.getElementById('inputMargen').addEventListener('input', () => {
     const margen = getMargen();
     document.querySelectorAll('.fila-item').forEach(fila => {
-        const costo   = parseFloat(fila.querySelector('.inp-costo').value) || 0;
-        const pvInput = fila.querySelector('.inp-precio-venta');
-        pvInput.value = (costo * (1 + margen / 100)).toFixed(2);
-        const smallEl = pvInput.nextElementSibling;
-        if (smallEl && smallEl.tagName === 'SMALL') smallEl.textContent = `costo × ${margen}% margen`;
+        if (fila.querySelector('.inp-es-nuevo').value === '1') {
+            const costo   = parseFloat(fila.querySelector('.inp-costo').value) || 0;
+            const pvInput = fila.querySelector('.inp-precio-venta');
+            pvInput.value = (costo * (1 + margen / 100)).toFixed(2);
+            const smallEl = pvInput.nextElementSibling;
+            if (smallEl && smallEl.tagName === 'SMALL') smallEl.textContent = `costo × ${margen}% margen`;
+        }
     });
     recalcularTotales();
 });

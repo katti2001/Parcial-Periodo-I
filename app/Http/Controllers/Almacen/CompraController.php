@@ -18,37 +18,13 @@ use Illuminate\Support\Facades\DB;
 
 class CompraController extends Controller
 {
-    public function index(Request $request)
+    public function index()
     {
-        $proveedores = Proveedor::orderBy('nombre_empresa')->get();
+        $compras = Compra::with('proveedor')
+            ->orderByDesc('id_compra')
+            ->paginate(15);
 
-        $query = Compra::with('proveedor')
-            ->when($request->filled('estado'), fn($q) =>
-                $q->where('estado', $request->estado)
-            )
-            ->when($request->filled('id_proveedor'), fn($q) =>
-                $q->where('id_proveedor', $request->id_proveedor)
-            )
-            ->when($request->filled('fecha_desde'), fn($q) =>
-                $q->whereDate('fecha_compra', '>=', $request->fecha_desde)
-            )
-            ->when($request->filled('fecha_hasta'), fn($q) =>
-                $q->whereDate('fecha_compra', '<=', $request->fecha_hasta)
-            )
-            ->when($request->filled('factura'), fn($q) =>
-                $q->where('numero_factura_proveedor', 'like', '%' . $request->factura . '%')
-            );
-
-        $totalRecibidas  = (clone $query)->where('estado', 'recibido')->count();
-        $totalSolicitadas = (clone $query)->where('estado', 'solicitado')->count();
-        $montoFiltrado   = (clone $query)->sum('total_compra');
-
-        $compras = $query->orderByDesc('id_compra')->paginate(15)->withQueryString();
-
-        return view('almacen.compras.index', compact(
-            'compras', 'proveedores',
-            'totalRecibidas', 'totalSolicitadas', 'montoFiltrado'
-        ));
+        return view('almacen.compras.index', compact('compras'));
     }
 
     public function create()
@@ -62,6 +38,10 @@ class CompraController extends Controller
         return view('almacen.compras.create', compact('proveedores', 'productos', 'tallas', 'categorias', 'equipos'));
     }
 
+    /**
+     * Registrar una compra con sus detalles.
+     * Crea productos nuevos si es necesario, calcula precio_venta_base con el margen indicado.
+     */
     public function store(Request $request)
     {
         $request->validate([
@@ -73,14 +53,16 @@ class CompraController extends Controller
             'items'                     => 'required|array|min:1',
             'items.*.es_nuevo'          => 'required|in:0,1',
             'items.*.mismo_producto'    => 'nullable|in:0,1',
+
             'items.*.id_producto'       => 'nullable|integer',
+
             'items.*.sku_base'          => 'nullable|string|max:20',
             'items.*.nombre'            => 'nullable|string|max:100',
             'items.*.descripcion'       => 'nullable|string',
             'items.*.id_categoria'      => 'nullable|integer|exists:categorias,id_categoria',
             'items.*.id_equipo'         => 'nullable|integer|exists:equipos,id_equipo',
+
             'items.*.id_talla'          => 'required|exists:tallas,id_talla',
-            'items.*.sku_lote'          => 'nullable|string|max:50',
             'items.*.cantidad_comprada' => 'required|integer|min:1',
             'items.*.costo_unitario'    => 'required|numeric|min:0',
             'imagenes'                  => 'nullable|array',
@@ -94,7 +76,7 @@ class CompraController extends Controller
         $skusEnEstaCompra = [];
         foreach ($request->items as $i => $item) {
             if ((int) $item['es_nuevo'] !== 1) continue;
-            if ((int) ($item['mismo_producto'] ?? 0) === 1) continue;
+            if ((int) ($item['mismo_producto'] ?? 0) === 1) continue; 
 
             $sku = trim($item['sku_base'] ?? '');
             if (empty($sku)) continue;
@@ -113,28 +95,19 @@ class CompraController extends Controller
             return back()->withInput()->withErrors($erroresSku);
         }
 
-        $imagenesSubidas  = [];
-        $warningsImagenes = [];
-        $imagenesInput    = $request->file('imagenes', []);
+        $imagenesSubidas = []; 
+        $imagenesInput   = $request->file('imagenes', []);
         foreach ($imagenesInput as $idx => $archivos) {
             if (empty($archivos)) continue;
             $imagenesSubidas[$idx] = [];
             foreach (array_slice($archivos, 0, 5) as $pos => $archivo) {
-                try {
-                    $resultado = Cloudinary::upload($archivo->getRealPath(), [
-                        'folder' => 'tienda_paypal/productos',
-                    ]);
-                    $imagenesSubidas[$idx][] = [
-                        'url'          => $resultado->getSecurePath(),
-                        'es_principal' => ($pos === 0),
-                    ];
-                } catch (\Exception $e) {
-                    \Illuminate\Support\Facades\Log::error('Cloudinary upload error (compra)', [
-                        'archivo' => $archivo->getClientOriginalName(),
-                        'error'   => $e->getMessage(),
-                    ]);
-                    $warningsImagenes[] = 'No se pudo subir "' . $archivo->getClientOriginalName() . '": ' . $e->getMessage();
-                }
+                $resultado = Cloudinary::upload($archivo->getRealPath(), [
+                    'folder' => 'tienda_paypal/productos',
+                ]);
+                $imagenesSubidas[$idx][] = [
+                    'url'          => $resultado->getSecurePath(),
+                    'es_principal' => ($pos === 0),
+                ];
             }
         }
 
@@ -172,6 +145,7 @@ class CompraController extends Controller
                     $idProducto    = $producto->id_producto;
                     $ultimoIdNuevo = $idProducto;
 
+                
                     if (!empty($imagenesSubidas[$idx])) {
                         foreach ($imagenesSubidas[$idx] as $img) {
                             ImagenesProducto::create([
@@ -189,14 +163,14 @@ class CompraController extends Controller
                     $idProducto = $ultimoIdNuevo;
 
                 } else {
+                 
                     $idProducto    = (int) $item['id_producto'];
-                    $ultimoIdNuevo = null;
+                    $ultimoIdNuevo = null; 
                 }
 
                 $itemsResueltos[] = [
                     'id_producto'       => $idProducto,
                     'id_talla'          => $item['id_talla'],
-                    'sku_lote'          => $item['sku_lote'] ?? null,
                     'cantidad_comprada' => $cantidad,
                     'costo_unitario'    => $costo,
                 ];
@@ -215,7 +189,6 @@ class CompraController extends Controller
                     'id_compra'         => $compra->id_compra,
                     'id_producto'       => $item['id_producto'],
                     'id_talla'          => $item['id_talla'],
-                    'sku_lote'          => $item['sku_lote'],
                     'cantidad_comprada' => $item['cantidad_comprada'],
                     'cantidad_restante' => $item['cantidad_comprada'],
                     'costo_unitario'    => $item['costo_unitario'],
@@ -234,14 +207,8 @@ class CompraController extends Controller
             }
         });
 
-        $redirect = redirect()->route('almacen.compras.index')
+        return redirect()->route('almacen.compras.index')
             ->with('success', 'Compra registrada correctamente.');
-
-        if (!empty($warningsImagenes)) {
-            $redirect->with('warning', 'La compra fue registrada, pero algunas imágenes no se subieron: ' . implode(' | ', $warningsImagenes));
-        }
-
-        return $redirect;
     }
 
     public function show($id)
@@ -255,6 +222,7 @@ class CompraController extends Controller
         return view('almacen.compras.show', compact('compra'));
     }
 
+  
     public function recibirCompra($id)
     {
         $compra = Compra::with('detalle_compras')->findOrFail($id);
