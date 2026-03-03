@@ -18,7 +18,6 @@
 </head>
 <body>
 <div class="d-flex">
-    {{-- Sidebar --}}
     <div class="sidebar p-3" style="width:240px;flex-shrink:0">
         <a href="{{ route('admin.dashboard') }}" class="text-white text-decoration-none d-flex align-items-center gap-2 mb-4">
             <i class="bi bi-shirt fs-5"></i>
@@ -32,6 +31,9 @@
             <a href="{{ route('admin.productos.index') }}"
                class="nav-link {{ request()->routeIs('admin.productos*') ? 'active' : '' }}">
                 <i class="bi bi-box-seam me-2"></i>Productos
+                @if(!empty($stockBajoCount) && $stockBajoCount > 0)
+                    <span class="badge bg-warning text-dark ms-1">{{ $stockBajoCount }}</span>
+                @endif
             </a>
             <a href="{{ route('admin.categorias.index') }}"
                class="nav-link {{ request()->routeIs('admin.categorias*') ? 'active' : '' }}">
@@ -75,9 +77,7 @@
         </nav>
     </div>
 
-    {{-- Contenido --}}
     <div class="main-content flex-grow-1 p-4">
-        {{-- Header --}}
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h4 class="mb-0 fw-bold">@yield('header', 'Dashboard')</h4>
             <span class="text-muted small">
@@ -85,7 +85,6 @@
             </span>
         </div>
 
-        {{-- Alertas --}}
         @if(session('success'))
             <div class="alert alert-success alert-dismissible fade show">
                 <i class="bi bi-check-circle me-2"></i>{{ session('success') }}

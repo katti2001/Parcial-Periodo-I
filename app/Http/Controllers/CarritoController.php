@@ -9,10 +9,6 @@ use Illuminate\Http\Request;
 
 class CarritoController extends Controller
 {
-    /**
-     * Calcula el stock disponible de un producto en una talla específica,
-     * basado ÚNICAMENTE en el lote actual (FIFO) para evitar cruces.
-     */
     private function stockDisponible(int $idProducto, int $idTalla): int
     {
         return (int) DetalleCompra::where('id_producto', $idProducto)
@@ -22,14 +18,10 @@ class CarritoController extends Controller
             ->value('cantidad_restante') ?? 0;
     }
 
-    /**
-     * Mostrar el carrito.
-     */
     public function index()
     {
         $carrito = session('carrito', []);
 
-        // Actualizar precios dinámicos y restringir al stock del lote actual
         $cambios = false;
         foreach ($carrito as $clave => &$item) {
             $producto = Producto::find($item['id_producto']);
@@ -39,13 +31,11 @@ class CarritoController extends Controller
                 continue;
             }
 
-            // Actualizar precio a la cotización actual
             if ($item['precio'] != $producto->precio_calculado) {
                 $item['precio'] = $producto->precio_calculado;
                 $cambios = true;
             }
 
-            // Validar que la cantidad no sobrepase al Lote Actual
             $stockActual = $this->stockDisponible($item['id_producto'], $item['id_talla']);
             if ($item['cantidad'] > $stockActual) {
                 $cambios = true;
@@ -66,9 +56,6 @@ class CarritoController extends Controller
         return view('carrito.index', compact('carrito', 'total'));
     }
 
-    /**
-     * Agregar producto al carrito.
-     */
     public function agregar(Request $request, $id)
     {
         $request->validate([
@@ -85,7 +72,6 @@ class CarritoController extends Controller
         $cantidadEnCarrito  = isset($carrito[$clave]) ? $carrito[$clave]['cantidad'] : 0;
         $cantidadTotal      = $cantidadEnCarrito + $cantidadSolicitada;
 
-        // Verificar stock disponible
         $stock = $this->stockDisponible($producto->id_producto, $talla->id_talla);
 
         if ($stock <= 0) {
@@ -118,9 +104,6 @@ class CarritoController extends Controller
             ->with('success', 'Producto agregado al carrito.');
     }
 
-    /**
-     * Actualizar cantidad de un item.
-     */
     public function actualizar(Request $request, $clave)
     {
         $request->validate(['cantidad' => 'required|integer|min:1|max:5']);
@@ -144,9 +127,6 @@ class CarritoController extends Controller
         return redirect()->route('carrito.index');
     }
 
-    /**
-     * Eliminar un item del carrito.
-     */
     public function eliminar($clave)
     {
         $carrito = session('carrito', []);
@@ -157,9 +137,6 @@ class CarritoController extends Controller
             ->with('success', 'Producto eliminado del carrito.');
     }
 
-    /**
-     * Vaciar el carrito completo.
-     */
     public function vaciar()
     {
         session()->forget('carrito');
@@ -167,4 +144,3 @@ class CarritoController extends Controller
             ->with('success', 'Carrito vaciado.');
     }
 }
-

@@ -1,4 +1,3 @@
-{{-- Formulario compartido para crear/editar cupón --}}
 <div class="row g-3">
     <div class="col-12">
         <label class="form-label fw-semibold">Código <span class="text-danger">*</span></label>

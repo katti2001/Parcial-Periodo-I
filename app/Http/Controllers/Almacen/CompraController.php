@@ -22,7 +22,7 @@ class CompraController extends Controller
     {
         $proveedores = Proveedor::orderBy('nombre_empresa')->get();
 
-        $compras = Compra::with('proveedor')
+        $query = Compra::with('proveedor')
             ->when($request->filled('estado'), fn($q) =>
                 $q->where('estado', $request->estado)
             )
@@ -37,12 +37,18 @@ class CompraController extends Controller
             )
             ->when($request->filled('factura'), fn($q) =>
                 $q->where('numero_factura_proveedor', 'like', '%' . $request->factura . '%')
-            )
-            ->orderByDesc('id_compra')
-            ->paginate(15)
-            ->withQueryString();
+            );
 
-        return view('almacen.compras.index', compact('compras', 'proveedores'));
+        $totalRecibidas  = (clone $query)->where('estado', 'recibido')->count();
+        $totalSolicitadas = (clone $query)->where('estado', 'solicitado')->count();
+        $montoFiltrado   = (clone $query)->sum('total_compra');
+
+        $compras = $query->orderByDesc('id_compra')->paginate(15)->withQueryString();
+
+        return view('almacen.compras.index', compact(
+            'compras', 'proveedores',
+            'totalRecibidas', 'totalSolicitadas', 'montoFiltrado'
+        ));
     }
 
     public function create()
@@ -56,10 +62,6 @@ class CompraController extends Controller
         return view('almacen.compras.create', compact('proveedores', 'productos', 'tallas', 'categorias', 'equipos'));
     }
 
-    /**
-     * Registrar una compra con sus detalles.
-     * Crea productos nuevos si es necesario, calcula precio_venta_base con el margen indicado.
-     */
     public function store(Request $request)
     {
         $request->validate([
@@ -71,20 +73,16 @@ class CompraController extends Controller
             'items'                     => 'required|array|min:1',
             'items.*.es_nuevo'          => 'required|in:0,1',
             'items.*.mismo_producto'    => 'nullable|in:0,1',
-            // producto existente
             'items.*.id_producto'       => 'nullable|integer',
-            // producto nuevo
             'items.*.sku_base'          => 'nullable|string|max:20',
             'items.*.nombre'            => 'nullable|string|max:100',
             'items.*.descripcion'       => 'nullable|string',
             'items.*.id_categoria'      => 'nullable|integer|exists:categorias,id_categoria',
             'items.*.id_equipo'         => 'nullable|integer|exists:equipos,id_equipo',
-            // comunes
             'items.*.id_talla'          => 'required|exists:tallas,id_talla',
             'items.*.sku_lote'          => 'nullable|string|max:50',
             'items.*.cantidad_comprada' => 'required|integer|min:1',
             'items.*.costo_unitario'    => 'required|numeric|min:0',
-            // imágenes: máx 5 por slot, cada una imagen válida ≤ 5 MB
             'imagenes'                  => 'nullable|array',
             'imagenes.*'                => 'nullable|array|max:5',
             'imagenes.*.*'              => 'nullable|image|max:5120',
@@ -92,12 +90,11 @@ class CompraController extends Controller
 
         $margen = (float) $request->margen;
 
-        // Validar SKUs de productos nuevos (solo filas líderes, mismo_producto=0) antes de la transacción
         $erroresSku      = [];
         $skusEnEstaCompra = [];
         foreach ($request->items as $i => $item) {
             if ((int) $item['es_nuevo'] !== 1) continue;
-            if ((int) ($item['mismo_producto'] ?? 0) === 1) continue; // las filas "mismo" no tienen SKU propio
+            if ((int) ($item['mismo_producto'] ?? 0) === 1) continue;
 
             $sku = trim($item['sku_base'] ?? '');
             if (empty($sku)) continue;
@@ -116,7 +113,6 @@ class CompraController extends Controller
             return back()->withInput()->withErrors($erroresSku);
         }
 
-        // Subir imágenes a Cloudinary ANTES de la transacción para no mezclar IO con DB
         $imagenesSubidas  = [];
         $warningsImagenes = [];
         $imagenesInput    = $request->file('imagenes', []);
@@ -145,8 +141,6 @@ class CompraController extends Controller
         DB::transaction(function () use ($request, $margen, $imagenesSubidas) {
             $total = 0;
 
-            // Pre-procesar ítems: resolver o crear productos
-            // $ultimoIdNuevo guarda el último id_producto creado para resolver filas "mismo_producto"
             $ultimoIdNuevo = null;
             $itemsResueltos = [];
 
@@ -159,7 +153,6 @@ class CompraController extends Controller
                 $esMismo   = (int) ($item['mismo_producto'] ?? 0) === 1;
 
                 if ($esNuevo && !$esMismo) {
-                    // Fila líder: crear producto nuevo
                     if (empty($item['sku_base']) || empty($item['nombre'])) {
                         abort(422, 'SKU y nombre son obligatorios para productos nuevos.');
                     }
@@ -179,7 +172,6 @@ class CompraController extends Controller
                     $idProducto    = $producto->id_producto;
                     $ultimoIdNuevo = $idProducto;
 
-                    // Asociar imágenes subidas para este índice
                     if (!empty($imagenesSubidas[$idx])) {
                         foreach ($imagenesSubidas[$idx] as $img) {
                             ImagenesProducto::create([
@@ -191,16 +183,14 @@ class CompraController extends Controller
                     }
 
                 } elseif ($esNuevo && $esMismo) {
-                    // Fila "mismo producto": reutilizar el último producto nuevo creado
                     if ($ultimoIdNuevo === null) {
                         abort(422, 'No hay producto nuevo anterior para la fila "mismo producto".');
                     }
                     $idProducto = $ultimoIdNuevo;
 
                 } else {
-                    // Producto existente
                     $idProducto    = (int) $item['id_producto'];
-                    $ultimoIdNuevo = null; // romper la cadena de "mismo producto"
+                    $ultimoIdNuevo = null;
                 }
 
                 $itemsResueltos[] = [
@@ -265,9 +255,6 @@ class CompraController extends Controller
         return view('almacen.compras.show', compact('compra'));
     }
 
-    /**
-     * Marcar una compra como "recibida" e insertar en kardex.
-     */
     public function recibirCompra($id)
     {
         $compra = Compra::with('detalle_compras')->findOrFail($id);

@@ -3,7 +3,50 @@
 @section('header', 'Dashboard')
 
 @section('content')
-{{-- Tarjetas de estadísticas --}}
+@if($productos_stock_bajo->isNotEmpty())
+<div class="alert alert-warning alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+    <div class="d-flex align-items-start gap-3">
+        <div class="fs-4 text-warning">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+        </div>
+        <div class="flex-grow-1">
+            <div class="fw-bold mb-1">
+                Stock bajo — {{ $productos_stock_bajo->count() }} {{ $productos_stock_bajo->count() === 1 ? 'producto' : 'productos' }} con 5 unidades o menos
+            </div>
+            <div class="table-responsive mt-2">
+                <table class="table table-sm table-borderless mb-0">
+                    <thead>
+                        <tr class="text-muted small">
+                            <th>Producto</th>
+                            <th class="text-center">Stock actual</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($productos_stock_bajo as $prod)
+                        <tr>
+                            <td>{{ $prod->nombre }}</td>
+                            <td class="text-center">
+                                <span class="badge {{ $prod->stock_total == 0 ? 'bg-danger' : 'bg-warning text-dark' }}">
+                                    {{ $prod->stock_total ?? 0 }}
+                                </span>
+                            </td>
+                            <td>
+                                <a href="{{ route('admin.productos.edit', $prod->id_producto) }}" class="btn btn-sm btn-outline-warning py-0">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+</div>
+@endif
+
 <div class="row g-3 mb-4">
     <div class="col-sm-6 col-xl-3">
         <div class="card border-0 shadow-sm">
@@ -59,7 +102,6 @@
     </div>
 </div>
 
-{{-- Pedidos recientes --}}
 <div class="card border-0 shadow-sm">
     <div class="card-header bg-white fw-bold border-0 pt-3">
         <i class="bi bi-clock-history me-2"></i>Pedidos recientes

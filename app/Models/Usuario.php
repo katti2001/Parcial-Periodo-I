@@ -1,9 +1,5 @@
 <?php
 
-/**
- * Created by Reliese Model.
- */
-
 namespace App\Models;
 
 use Carbon\Carbon;
@@ -11,24 +7,6 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-/**
- * Class Usuario
- *
- * @property int $id_usuario
- * @property string $nombre
- * @property string $apellido
- * @property string $email
- * @property string $password
- * @property string|null $telefono
- * @property string|null $direccion_envio
- * @property string|null $rol
- * @property Carbon|null $fecha_registro
- *
- * @property Collection|Pedido[] $pedidos
- * @property Collection|Factura[] $facturas
- *
- * @package App\Models
- */
 class Usuario extends Authenticatable
 {
 	use Notifiable;

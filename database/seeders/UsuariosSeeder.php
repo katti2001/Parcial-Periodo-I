@@ -11,7 +11,6 @@ class UsuariosSeeder extends Seeder
     public function run(): void
     {
         DB::table('usuarios')->insert([
-            // Admin
             [
                 'nombre'         => 'Admin',
                 'apellido'       => 'Principal',
@@ -21,7 +20,6 @@ class UsuariosSeeder extends Seeder
                 'direccion_envio'=> 'Av. Principal 100, Quito',
                 'rol'            => 'admin',
             ],
-            // Almacén
             [
                 'nombre'         => 'Carlos',
                 'apellido'       => 'Bodega',
@@ -31,7 +29,6 @@ class UsuariosSeeder extends Seeder
                 'direccion_envio'=> 'Calle Bodega 45, Guayaquil',
                 'rol'            => 'almacen',
             ],
-            // Clientes
             [
                 'nombre'         => 'María',
                 'apellido'       => 'García',

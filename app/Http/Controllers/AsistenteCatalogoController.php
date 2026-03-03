@@ -18,12 +18,10 @@ class AsistenteCatalogoController extends Controller
 
         $mensaje = trim($request->input('mensaje'));
 
-        // ── 1. Cargar productos activos con categoría, equipo e imágenes ──────
         $productos = Producto::with(['categoria', 'equipo', 'imagenes_productos'])
             ->where('activo', true)
             ->get();
 
-        // ── 2. Stock disponible por producto ──────────────────────────────────
         $detallesActivos = DetalleCompra::where('cantidad_restante', '>', 0)
             ->whereHas('compra', fn($q) => $q->where('estado', 'recibido'))
             ->orderBy('id_detalle_compra', 'asc')
@@ -33,7 +31,6 @@ class AsistenteCatalogoController extends Controller
         $tallasCollection = [];
 
         foreach ($detallesActivos as $d) {
-            // Al estar ordenados por id asc, el primer registro por producto-talla es el lote actual
             if (!isset($tallasCollection[$d->id_producto][$d->id_talla])) {
                 $tallasCollection[$d->id_producto][$d->id_talla] = $d->cantidad_restante;
                 $stockMap[$d->id_producto] = ($stockMap[$d->id_producto] ?? 0) + $d->cantidad_restante;
@@ -42,11 +39,8 @@ class AsistenteCatalogoController extends Controller
 
         $todasTallas = Talla::pluck('nombre', 'id_talla');
 
-        // ── 4. Construir catálogo para el prompt ──────────────────────────────
         $catalogo = $productos->map(function ($p) use ($stockMap, $tallasCollection, $todasTallas) {
             $stockTotal = $stockMap[$p->id_producto] ?? 0;
-            $categoria  = $p->categoria?->nombre ?? 'Sin categoría';
-            $equipo     = $p->equipo?->nombre    ?? 'Sin equipo';
 
             $tallasInfo = [];
             if (isset($tallasCollection[$p->id_producto])) {
@@ -71,7 +65,6 @@ class AsistenteCatalogoController extends Controller
 
         $catalogoJson = json_encode($catalogo, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 
-        // ── 5. Prompt para Gemini ─────────────────────────────────────────────
         $systemPrompt = <<<PROMPT
 Eres un asistente de compras de una tienda deportiva en línea.
 Ayudas a los clientes a encontrar productos, verificar stock y agregar al carrito.
@@ -93,7 +86,6 @@ ACCION_JSON:{"accion":"ver_producto","id_producto":<id>,"nombre":"<nombre>","url
 Si no hay acción, no incluyas el bloque ACCION_JSON.
 PROMPT;
 
-        // ── 6. Llamar a Gemini via cURL nativo ───────────────────────────────
         $apiKey  = config('services.gemini.key');
         $url     = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key={$apiKey}";
         $payload = json_encode([
@@ -126,7 +118,6 @@ PROMPT;
         $data  = json_decode($raw, true);
         $texto = $data['candidates'][0]['content']['parts'][0]['text'] ?? '';
 
-        // ── 7. Extraer acción JSON ─────────────────────────────────────────────
         $accion      = null;
         $textoLimpio = $texto;
 

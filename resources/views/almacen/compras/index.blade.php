@@ -75,14 +75,6 @@
     </div>
 </form>
 
-{{-- Estadísticas rápidas --}}
-@php
-    $total      = $compras->total();
-    $recibidas  = $compras->getCollection()->where('estado','recibido')->count();
-    $solicitadas= $compras->getCollection()->where('estado','solicitado')->count();
-    $canceladas = $compras->getCollection()->where('estado','cancelado')->count();
-    $montoTotal = $compras->getCollection()->sum('total_compra');
-@endphp
 <div class="row g-3 mb-4">
     <div class="col-6 col-md-3">
         <div class="card border-0 shadow-sm text-center py-3">
@@ -92,20 +84,20 @@
     </div>
     <div class="col-6 col-md-3">
         <div class="card border-0 shadow-sm text-center py-3">
-            <div class="fs-3 fw-bold text-success">{{ $recibidas }}</div>
-            <div class="small text-muted">Recibidas (pág. actual)</div>
+            <div class="fs-3 fw-bold text-success">{{ $totalRecibidas }}</div>
+            <div class="small text-muted">Recibidas</div>
         </div>
     </div>
     <div class="col-6 col-md-3">
         <div class="card border-0 shadow-sm text-center py-3">
-            <div class="fs-3 fw-bold text-warning">{{ $solicitadas }}</div>
-            <div class="small text-muted">Pendientes (pág. actual)</div>
+            <div class="fs-3 fw-bold text-warning">{{ $totalSolicitadas }}</div>
+            <div class="small text-muted">Pendientes</div>
         </div>
     </div>
     <div class="col-6 col-md-3">
         <div class="card border-0 shadow-sm text-center py-3">
-            <div class="fs-3 fw-bold text-dark">${{ number_format($montoTotal, 2) }}</div>
-            <div class="small text-muted">Monto (pág. actual)</div>
+            <div class="fs-3 fw-bold text-dark">${{ number_format($montoFiltrado, 2) }}</div>
+            <div class="small text-muted">Monto filtrado</div>
         </div>
     </div>
 </div>

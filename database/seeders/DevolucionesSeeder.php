@@ -9,7 +9,6 @@ class DevolucionesSeeder extends Seeder
 {
     public function run(): void
     {
-        // Devolución del pedido 1 (entregado) — María pide devolver una camiseta Ecuador
         DB::table('devoluciones')->insert([
             'id_pedido'        => 1,
             'id_usuario'       => 3,
@@ -28,14 +27,13 @@ class DevolucionesSeeder extends Seeder
         DB::table('detalle_devoluciones')->insert([
             [
                 'id_devolucion'    => 1,
-                'id_detalle_pedido'=> 3, // camiseta Ecuador talla L (id_detalle_pedido=3)
+                'id_detalle_pedido'=> 3,
                 'cantidad_devuelta'=> 1,
                 'created_at'       => '2026-02-05 10:00:00',
                 'updated_at'       => '2026-02-05 10:00:00',
             ],
         ]);
 
-        // Devolución del pedido 5 (entregado) — María aprobada
         DB::table('devoluciones')->insert([
             'id_pedido'        => 5,
             'id_usuario'       => 3,
@@ -54,7 +52,7 @@ class DevolucionesSeeder extends Seeder
         DB::table('detalle_devoluciones')->insert([
             [
                 'id_devolucion'    => 2,
-                'id_detalle_pedido'=> 8, // LDU talla M (id_detalle_pedido=8 del pedido 5)
+                'id_detalle_pedido'=> 8,
                 'cantidad_devuelta'=> 1,
                 'created_at'       => '2026-02-10 09:00:00',
                 'updated_at'       => '2026-02-10 09:00:00',

@@ -10,8 +10,6 @@ use Illuminate\Validation\Rule;
 
 class AuthController extends Controller
 {
-    // ─── Registro ────────────────────────────────────────────────────────────
-
     public function showRegistro()
     {
         return view('auth.registro');
@@ -26,7 +24,6 @@ class AuthController extends Controller
             'password' => 'required|string|min:8|confirmed',
         ];
 
-        // Solo un admin puede enviar el campo rol
         if (Auth::check() && Auth::user()->esAdmin()) {
             $rules['rol'] = ['required', Rule::in(['cliente', 'admin', 'almacen'])];
         }
@@ -43,7 +40,6 @@ class AuthController extends Controller
             'rol.in'             => 'El rol seleccionado no es válido.',
         ]);
 
-        // El rol solo lo asigna el admin; cualquier otro siempre queda como cliente
         $rol = (Auth::check() && Auth::user()->esAdmin())
             ? $request->rol
             : 'cliente';
@@ -57,7 +53,6 @@ class AuthController extends Controller
             'fecha_registro'  => now(),
         ]);
 
-        // Si un admin creó el usuario, no lo loguea — lo redirige al dashboard
         if (Auth::check() && Auth::user()->esAdmin()) {
             return redirect()->route('admin.dashboard')
                 ->with('success', "Usuario {$usuario->nombre} creado con rol '{$rol}'.");
@@ -67,8 +62,6 @@ class AuthController extends Controller
 
         return redirect()->route('home')->with('success', '¡Bienvenido, ' . $usuario->nombre . '!');
     }
-
-    // ─── Login ────────────────────────────────────────────────────────────────
 
     public function showLogin()
     {
@@ -100,8 +93,6 @@ class AuthController extends Controller
         return $this->redirigirSegunRol(Auth::user());
     }
 
-    // ─── Logout ───────────────────────────────────────────────────────────────
-
     public function logout(Request $request)
     {
         Auth::logout();
@@ -111,8 +102,6 @@ class AuthController extends Controller
 
         return redirect()->route('login')->with('success', 'Sesión cerrada correctamente.');
     }
-
-    // ─── Helpers ──────────────────────────────────────────────────────────────
 
     private function redirigirSegunRol($usuario)
     {

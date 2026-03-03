@@ -36,7 +36,7 @@ class CuponesSeeder extends Seeder
                 'tipo'              => 'porcentaje',
                 'valor'             => 15.00,
                 'fecha_vencimiento' => '2025-08-31',
-                'activo'            => false, // expirado
+                'activo'            => false,
             ],
         ]);
     }

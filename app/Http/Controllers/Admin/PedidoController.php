@@ -57,16 +57,13 @@ class PedidoController extends Controller
 
         $pedido = Pedido::with('detalle_pedidos')->findOrFail($id);
 
-        // Evitar cancelar dos veces
         if ($pedido->estado_pedido === 'cancelado' && $estado === 'cancelado') {
             return back()->with('error', 'El pedido ya está cancelado.');
         }
 
         DB::transaction(function () use ($pedido, $estado) {
-            // Si se cancela, devolver stock
             if ($estado === 'cancelado' && $pedido->estado_pedido !== 'cancelado') {
                 foreach ($pedido->detalle_pedidos as $detalle) {
-                    // Devolver al lote más reciente del mismo producto/talla
                     $lote = DetalleCompra::where('id_producto', $detalle->id_producto)
                         ->where('id_talla', $detalle->id_talla)
                         ->orderByDesc('id_detalle_compra')
@@ -77,7 +74,6 @@ class PedidoController extends Controller
                         $lote->increment('cantidad_restante', $detalle->cantidad);
                     }
 
-                    // Registrar en Kardex como devolución
                     Kardex::create([
                         'id_producto'     => $detalle->id_producto,
                         'id_talla'        => $detalle->id_talla,
@@ -95,4 +91,3 @@ class PedidoController extends Controller
         return back()->with('success', "Pedido actualizado a: {$estado}");
     }
 }
-

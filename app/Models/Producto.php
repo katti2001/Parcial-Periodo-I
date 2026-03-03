@@ -1,35 +1,10 @@
 <?php
 
-/**
- * Created by Reliese Model.
- */
-
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 
-/**
- * Class Producto
- *
- * @property int $id_producto
- * @property string $sku_base
- * @property string $nombre
- * @property string|null $descripcion
- * @property float $precio_venta_base
- * @property int|null $id_categoria
- * @property int|null $id_equipo
- * @property bool $activo
- *
- * @property Categoria|null $categoria
- * @property Equipo|null $equipo
- * @property Collection|DetalleCompra[] $detalle_compras
- * @property Collection|DetallePedido[] $detalle_pedidos
- * @property Collection|ImagenesProducto[] $imagenes_productos
- * @property Collection|Kardex[] $kardex
- *
- * @package App\Models
- */
 class Producto extends Model
 {
 	protected $table = 'productos';

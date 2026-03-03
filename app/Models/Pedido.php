@@ -1,39 +1,11 @@
 <?php
 
-/**
- * Created by Reliese Model.
- */
-
 namespace App\Models;
 
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 
-/**
- * Class Pedido
- *
- * @property int $id_pedido
- * @property int|null $id_usuario
- * @property int|null $id_cupon
- * @property float $total
- * @property float $subtotal
- * @property float $monto_descuento
- * @property float $costo_envio
- * @property string|null $estado_pago
- * @property string|null $paypal_order_id
- * @property string|null $paypal_payer_id
- * @property string $moneda
- * @property string|null $estado_pedido
- * @property Carbon|null $fecha_pedido
- *
- * @property Usuario|null $usuario
- * @property Cupon|null $cupon
- * @property Collection|DetallePedido[] $detalle_pedidos
- * @property Factura|null $factura
- *
- * @package App\Models
- */
 class Pedido extends Model
 {
 	protected $table = 'pedidos';

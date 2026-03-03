@@ -39,7 +39,6 @@ class ProductoController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        // Stock disponible: compras ya recibidas (cantidad_restante no consumida)
         $stockDisponible = DetalleCompra::select('dc.id_producto', DB::raw('SUM(dc.cantidad_restante) as total'))
             ->from('detalle_compras as dc')
             ->join('compras as c', 'c.id_compra', '=', 'dc.id_compra')
@@ -47,7 +46,6 @@ class ProductoController extends Controller
             ->groupBy('dc.id_producto')
             ->pluck('total', 'dc.id_producto');
 
-        // Stock en camino: compras solicitadas (aún no recibidas)
         $stockEnCamino = DetalleCompra::select('dc.id_producto', DB::raw('SUM(dc.cantidad_comprada) as total'))
             ->from('detalle_compras as dc')
             ->join('compras as c', 'c.id_compra', '=', 'dc.id_compra')
@@ -84,7 +82,6 @@ class ProductoController extends Controller
 
         $producto = Producto::create($data);
 
-        // Subir imágenes a Cloudinary
         $warningsImagenes = [];
         if ($request->hasFile('imagenes')) {
             foreach ($request->file('imagenes') as $i => $archivo) {
@@ -149,7 +146,6 @@ class ProductoController extends Controller
 
         $producto->update($data);
 
-        // Eliminar imágenes seleccionadas en Cloudinary y en BD
         $warningsImagenes = [];
         if ($request->filled('eliminar_imagenes')) {
             $aEliminar = ImagenesProducto::whereIn('id_imagen', $request->eliminar_imagenes)
@@ -166,14 +162,12 @@ class ProductoController extends Controller
                             'public_id' => $publicId,
                             'error'     => $e->getMessage(),
                         ]);
-                        // Se elimina de la BD aunque falle en Cloudinary
                     }
                 }
                 $img->delete();
             }
         }
 
-        // Subir nuevas imágenes a Cloudinary
         if ($request->hasFile('imagenes')) {
             $tieneImagenes  = $producto->imagenes_productos()->count();
             $tienePrincipal = $producto->imagenes_productos()->where('es_principal', true)->exists();
@@ -219,7 +213,6 @@ class ProductoController extends Controller
     {
         $producto = Producto::with('imagenes_productos')->findOrFail($id);
 
-        // Eliminar imágenes de Cloudinary y de la BD antes de desactivar
         foreach ($producto->imagenes_productos as $img) {
             $publicId = $this->extraerPublicId($img->url_imagen);
             if ($publicId) {
@@ -234,13 +227,7 @@ class ProductoController extends Controller
             ->with('success', 'Producto desactivado.');
     }
 
-    // ─── Helper ──────────────────────────────────────────────────────────────
 
-    /**
-     * Extrae el public_id de Cloudinary a partir de una URL segura.
-     * Ejemplo: https://res.cloudinary.com/demo/image/upload/v123/tienda_paypal/productos/abc.jpg
-     * → tienda_paypal/productos/abc
-     */
     private function extraerPublicId(string $url): ?string
     {
         if (preg_match('/\/upload\/(?:v\d+\/)?(.+)\.[a-z]+$/i', $url, $m)) {

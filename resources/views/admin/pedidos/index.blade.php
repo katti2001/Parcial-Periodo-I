@@ -4,7 +4,6 @@
 
 @section('content')
 
-{{-- Filtros --}}
 <form method="GET" action="{{ route('admin.pedidos.index') }}" class="card border-0 shadow-sm mb-4">
     <div class="card-body">
         <div class="row g-2 align-items-end">

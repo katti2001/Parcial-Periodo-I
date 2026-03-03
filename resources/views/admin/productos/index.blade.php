@@ -83,17 +83,21 @@
             </thead>
             <tbody>
                 @forelse($productos as $p)
-                <tr>
+                @php $disp = $stockDisponible[$p->id_producto] ?? 0; @endphp
+                <tr class="{{ ($disp > 0 && $disp <= 3) ? 'table-warning' : '' }}">
                     <td><code>{{ $p->sku_base }}</code></td>
                     <td>{{ $p->nombre }}</td>
                     <td>{{ optional($p->categoria)->nombre ?? '—' }}</td>
                     <td>{{ optional($p->equipo)->nombre ?? '—' }}</td>
                     <td>${{ number_format($p->precio_venta_base, 2) }}</td>
                     <td class="text-center">
-                        @php $disp = $stockDisponible[$p->id_producto] ?? 0; @endphp
-                        <span class="badge {{ $disp > 0 ? 'bg-success' : 'bg-danger' }}">
-                            {{ $disp }}
-                        </span>
+                        @if($disp > 3)
+                            <span class="badge bg-success">{{ $disp }}</span>
+                        @elseif($disp > 0)
+                            <span class="badge bg-warning text-dark">{{ $disp }}</span>
+                        @else
+                            <span class="badge bg-danger">{{ $disp }}</span>
+                        @endif
                     </td>
                     <td class="text-center">
                         @php $camino = $stockEnCamino[$p->id_producto] ?? 0; @endphp
@@ -137,7 +141,7 @@
 
 <div class="d-flex gap-3 mt-3 small text-muted">
     <span><span class="badge bg-success">N</span> Stock disponible (compra recibida)</span>
-    <span><span class="badge bg-warning text-dark">N</span> En camino (compra solicitada)</span>
+    <span><span class="badge bg-warning text-dark">N</span> Stock bajo (&le;3) / En camino</span>
     <span><span class="badge bg-danger">0</span> Sin stock</span>
 </div>
 @endsection

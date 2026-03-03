@@ -249,12 +249,10 @@ function recalcularTotales() {
         fila.querySelector('.td-subtotal').textContent = '$' + sub.toFixed(2);
         total += sub;
 
-        // Recalcular precio venta si es producto nuevo
-        if (fila.querySelector('.inp-es-nuevo').value === '1') {
-            const margen  = getMargen();
-            const pvInput = fila.querySelector('.inp-precio-venta');
-            if (pvInput) pvInput.value = (costo * (1 + margen / 100)).toFixed(2);
-        }
+        // Recalcular precio venta según margen (aplica tanto a nuevos como a existentes)
+        const margen  = getMargen();
+        const pvInput = fila.querySelector('.inp-precio-venta');
+        if (pvInput) pvInput.value = (costo * (1 + margen / 100)).toFixed(2);
     });
     document.getElementById('totalGeneral').textContent = '$' + total.toFixed(2);
 }
@@ -702,13 +700,11 @@ document.getElementById('btnAgregarFila').addEventListener('click', () => {
 document.getElementById('inputMargen').addEventListener('input', () => {
     const margen = getMargen();
     document.querySelectorAll('.fila-item').forEach(fila => {
-        if (fila.querySelector('.inp-es-nuevo').value === '1') {
-            const costo   = parseFloat(fila.querySelector('.inp-costo').value) || 0;
-            const pvInput = fila.querySelector('.inp-precio-venta');
-            pvInput.value = (costo * (1 + margen / 100)).toFixed(2);
-            const smallEl = pvInput.nextElementSibling;
-            if (smallEl && smallEl.tagName === 'SMALL') smallEl.textContent = `costo × ${margen}% margen`;
-        }
+        const costo   = parseFloat(fila.querySelector('.inp-costo').value) || 0;
+        const pvInput = fila.querySelector('.inp-precio-venta');
+        pvInput.value = (costo * (1 + margen / 100)).toFixed(2);
+        const smallEl = pvInput.nextElementSibling;
+        if (smallEl && smallEl.tagName === 'SMALL') smallEl.textContent = `costo × ${margen}% margen`;
     });
     recalcularTotales();
 });

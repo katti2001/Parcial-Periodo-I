@@ -13,8 +13,6 @@ use Illuminate\Support\Facades\DB;
 
 class DevolucionController extends Controller
 {
-    // ── Historial de pedidos del cliente ────────────────────────────────────────
-
     public function index()
     {
         $pedidos = Pedido::with(['detalle_pedidos.producto', 'devolucion'])
@@ -24,8 +22,6 @@ class DevolucionController extends Controller
 
         return view('cliente.pedidos.index', compact('pedidos'));
     }
-
-    // ── Detalle de un pedido ─────────────────────────────────────────────────────
 
     public function show($id)
     {
@@ -40,8 +36,6 @@ class DevolucionController extends Controller
 
         return view('cliente.pedidos.show', compact('pedido', 'puedeDevolver'));
     }
-
-    // ── Formulario de solicitud de devolución ───────────────────────────────────
 
     public function create($id_pedido)
     {
@@ -59,8 +53,6 @@ class DevolucionController extends Controller
         return view('cliente.devoluciones.crear', compact('pedido', 'motivos'));
     }
 
-    // ── Guardar solicitud de devolución ─────────────────────────────────────────
-
     public function store(Request $request)
     {
         $request->validate([
@@ -76,12 +68,10 @@ class DevolucionController extends Controller
             ->where('id_usuario', Auth::id())
             ->findOrFail($request->id_pedido);
 
-        // Validar condiciones generales
         if (!$this->puedesolicitarDevolucion($pedido)) {
             return back()->with('error', 'Este pedido no cumple las condiciones para solicitar una devolución.');
         }
 
-        // Validar que cada ítem pertenece al pedido y la cantidad es válida
         $detallesIndexados = $pedido->detalle_pedidos->keyBy('id_detalle_pedido');
 
         foreach ($request->items as $item) {
@@ -121,8 +111,6 @@ class DevolucionController extends Controller
             ->with('success', 'Tu solicitud de devolución fue enviada. Te notificaremos cuando sea revisada.');
     }
 
-    // ── Ver estado de una devolución ─────────────────────────────────────────────
-
     public function showDevolucion($id)
     {
         $devolucion = Devolucion::with([
@@ -134,14 +122,6 @@ class DevolucionController extends Controller
         return view('cliente.devoluciones.show', compact('devolucion'));
     }
 
-    // ── Helper privado ───────────────────────────────────────────────────────────
-
-    /**
-     * Un pedido puede solicitar devolución si:
-     *  - estado_pedido === 'entregado'
-     *  - fue entregado hace menos de 30 días
-     *  - no tiene ya una devolución en estado 'solicitado' o 'aprobado'
-     */
     private function puedesolicitarDevolucion(Pedido $pedido): bool
     {
         if ($pedido->estado_pedido !== 'entregado') {
@@ -158,11 +138,9 @@ class DevolucionController extends Controller
                          ->exists();
 
         if ($devolucionActiva) {
-            // Si la relación ya está cargada, comparamos estado
             if ($pedido->devolucion && in_array($pedido->devolucion->estado, ['solicitado', 'aprobado'])) {
                 return false;
             }
-            // Si vino del exists()
             if (is_bool($devolucionActiva) && $devolucionActiva === true) {
                 return false;
             }

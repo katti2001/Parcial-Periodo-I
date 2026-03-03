@@ -41,55 +41,51 @@ class CheckoutController extends Controller
             ->build();
     }
 
-    /**
-     * Mostrar resumen del checkout con opción de cupón.
-     */
     public function index(Request $request)
     {
         $carrito = session('carrito', []);
-        
+
         if (empty($carrito)) {
-        return redirect()->route('carrito.index')
-->with('error', 'Tu carrito está vacío.');
+            return redirect()->route('carrito.index')
+                ->with('error', 'Tu carrito está vacío.');
         }
-            
-                // Re-validar precios y stock contra el lote actual antes de mostrar el checkout
+
         $cambios = false;
-foreach ($carrito as $clave => &$item) {
-        $producto = \App\Models\Producto::find($item['id_producto']);
-        if (!$producto) {
-        unset($carrito[$clave]);
-        $cambios = true;
-        continue;
+        foreach ($carrito as $clave => &$item) {
+            $producto = \App\Models\Producto::find($item['id_producto']);
+            if (!$producto) {
+                unset($carrito[$clave]);
+                $cambios = true;
+                continue;
+            }
+
+            if ($item['precio'] != $producto->precio_calculado) {
+                $item['precio'] = $producto->precio_calculado;
+                $cambios = true;
+            }
+
+            $stockActual = (int) \App\Models\DetalleCompra::where('id_producto', $item['id_producto'])
+                ->where('id_talla', $item['id_talla'])
+                ->where('cantidad_restante', '>', 0)
+                ->orderBy('id_detalle_compra', 'asc')
+                ->value('cantidad_restante') ?? 0;
+
+            if ($item['cantidad'] > $stockActual) {
+                $cambios = true;
+                if ($stockActual == 0) {
+                    unset($carrito[$clave]);
+                } else {
+                    $item['cantidad'] = $stockActual;
+                }
+            }
         }
-        
-        if ($item['precio'] != $producto->precio_calculado) {
-        $item['precio'] = $producto->precio_calculado;
-        $cambios = true;
-        }
-        
-        $stockActual = (int) \App\Models\DetalleCompra::where('id_producto', $item['id_producto'])
-        ->where('id_talla', $item['id_talla'])
-        ->where('cantidad_restante', '>', 0)
-        ->orderBy('id_detalle_compra', 'asc')
-        ->value('cantidad_restante') ?? 0;
-        
-        if ($item['cantidad'] > $stockActual) {
-        $cambios = true;
-        if ($stockActual == 0) {
-        unset($carrito[$clave]);
-        } else {
-        $item['cantidad'] = $stockActual;
-        }
-        }
-        }
-        
+
         if ($cambios) {
-        session(['carrito' => $carrito]);
-        return redirect()->route('carrito.index')
-        ->with('error', 'Algunos productos en tu carrito han cambiado de precio o disponibilidad por actualización de inventario.');
+            session(['carrito' => $carrito]);
+            return redirect()->route('carrito.index')
+                ->with('error', 'Algunos productos en tu carrito han cambiado de precio o disponibilidad por actualización de inventario.');
         }
-        
+
         $subtotal        = collect($carrito)->sum(fn($i) => $i['precio'] * $i['cantidad']);
         $monto_descuento = 0.0;
         $cupon           = null;
@@ -111,9 +107,6 @@ foreach ($carrito as $clave => &$item) {
         ));
     }
 
-    /**
-     * Aplicar cupón de descuento.
-     */
     public function aplicarCupon(Request $request)
     {
         $request->validate(['codigo' => 'required|string']);
@@ -134,9 +127,6 @@ foreach ($carrito as $clave => &$item) {
         return back()->with('success', 'Cupón aplicado: ' . $cupon->codigo);
     }
 
-    /**
-     * Crear orden en PayPal y devolver el orderID al frontend.
-     */
     public function crearOrden(Request $request)
     {
         $carrito = session('carrito', []);
@@ -145,7 +135,6 @@ foreach ($carrito as $clave => &$item) {
             return response()->json(['error' => 'Carrito vacío'], 400);
         }
 
-        // Validación extra de seguridad (previniendo cambios entre cargar checkout y dar click en paypal)
         $cambios = false;
         foreach ($carrito as $clave => &$item) {
             $producto = \App\Models\Producto::find($item['id_producto']);
@@ -165,7 +154,7 @@ foreach ($carrito as $clave => &$item) {
         }
 
         if ($cambios) {
-            return response()->json(['error' => 'RELOAD_CART'], 409); // Frontend puede recargar y mostrar alerta
+            return response()->json(['error' => 'RELOAD_CART'], 409);
         }
 
         $subtotal        = collect($carrito)->sum(fn($i) => $i['precio'] * $i['cantidad']);
@@ -205,11 +194,6 @@ foreach ($carrito as $clave => &$item) {
         }
     }
 
-    /**
-     * Capturar el pago luego de aprobación en PayPal.
-     * Crea el pedido, decrementa el inventario (FIFO) y registra en kardex,
-     * todo dentro de una transacción atómica.
-     */
     public function capturarOrden(Request $request, $orderID)
     {
         try {
@@ -221,7 +205,6 @@ foreach ($carrito as $clave => &$item) {
             $result  = $response->getResult();
             $payerId = $result->getPayer()?->getPayerId() ?? '';
 
-            // Calcular totales
             $carrito         = session('carrito', []);
             $subtotal        = collect($carrito)->sum(fn($i) => $i['precio'] * $i['cantidad']);
             $monto_descuento = 0.0;
@@ -239,12 +222,10 @@ foreach ($carrito as $clave => &$item) {
 
             $total = max(0, $subtotal - $monto_descuento);
 
-            // Todo dentro de una transacción atómica
             $pedidoId = DB::transaction(function () use (
                 $carrito, $subtotal, $monto_descuento,
                 $cupon_id, $total, $orderID, $payerId
             ) {
-                // 1. Crear pedido
                 $pedido = Pedido::create([
                     'id_usuario'      => Auth::id(),
                     'id_cupon'        => $cupon_id,
@@ -260,7 +241,6 @@ foreach ($carrito as $clave => &$item) {
                     'fecha_pedido'    => now(),
                 ]);
 
-                // 2. Crear detalles y descontar inventario por ítem
                 foreach ($carrito as $item) {
                     DetallePedido::create([
                         'id_pedido'             => $pedido->id_pedido,
@@ -270,8 +250,6 @@ foreach ($carrito as $clave => &$item) {
                         'precio_unitario'       => $item['precio'],
                     ]);
 
-                    // Descontar cantidad_restante FIFO
-                    // (se consumen primero los lotes más antiguos)
                     $porDescontar = $item['cantidad'];
 
                     $lotes = DetalleCompra::where('id_producto', $item['id_producto'])
@@ -289,7 +267,6 @@ foreach ($carrito as $clave => &$item) {
                         $porDescontar -= $descuento;
                     }
 
-                    // 3. Registrar movimiento en kardex
                     Kardex::create([
                         'id_producto'     => $item['id_producto'],
                         'id_talla'        => $item['id_talla'],
@@ -300,7 +277,6 @@ foreach ($carrito as $clave => &$item) {
                     ]);
                 }
 
-                // 4. Crear factura y sus líneas
                 $factura = Factura::create([
                     'id_pedido'        => $pedido->id_pedido,
                     'id_usuario'       => Auth::id(),
@@ -330,7 +306,6 @@ foreach ($carrito as $clave => &$item) {
                 return $pedido->id_pedido;
             });
 
-            // Limpiar sesión
             session()->forget(['carrito', 'cupon_id']);
 
             return response()->json([
@@ -338,7 +313,6 @@ foreach ($carrito as $clave => &$item) {
                 'pedido_id' => $pedidoId,
             ]);
         } catch (ErrorException $e) {
-            // Error devuelto por la API de PayPal (400, 401, 403, 404, 422, 500)
             Log::error('PayPal capturarOrden — API error', [
                 'name'     => $e->getName(),
                 'message'  => $e->getMessageProperty(),
@@ -361,9 +335,6 @@ foreach ($carrito as $clave => &$item) {
         }
     }
 
-    /**
-     * Página de confirmación de pedido exitoso.
-     */
     public function confirmacion($id)
     {
         $pedido = Pedido::with(['detalle_pedidos.producto', 'detalle_pedidos.talla'])

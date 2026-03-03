@@ -10,10 +10,6 @@ use Illuminate\Support\Facades\DB;
 
 class AsistenteController extends Controller
 {
-    /**
-     * Recibe un mensaje del chat, consulta productos + stock,
-     * y devuelve una respuesta de Gemini con acciones estructuradas.
-     */
     public function chat(Request $request)
     {
         $request->validate([
@@ -22,12 +18,10 @@ class AsistenteController extends Controller
 
         $mensaje = trim($request->input('mensaje'));
 
-        // ── 1. Cargar todos los productos activos con categoría y equipo ─────
         $productos = Producto::with(['categoria', 'equipo'])
             ->where('activo', true)
             ->get();
 
-        // ── 2. Calcular stock disponible por producto ─────────────────────────
         $stockMap = DetalleCompra::select('dc.id_producto', DB::raw('SUM(dc.cantidad_restante) as total'))
             ->from('detalle_compras as dc')
             ->join('compras as c', 'c.id_compra', '=', 'dc.id_compra')
@@ -35,7 +29,6 @@ class AsistenteController extends Controller
             ->groupBy('dc.id_producto')
             ->pluck('total', 'dc.id_producto');
 
-        // ── 3. Construir catálogo como texto para el prompt ───────────────────
         $catalogo = $productos->map(function ($p) use ($stockMap) {
             $stock     = $stockMap[$p->id_producto] ?? 0;
             $categoria = $p->categoria?->nombre ?? 'Sin categoría';
@@ -54,7 +47,6 @@ class AsistenteController extends Controller
 
         $catalogoJson = json_encode($catalogo, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 
-        // ── 4. prompt para Gemini ───────────────────────────────────
         $systemPrompt = <<<PROMPT
 Eres un asistente de compras para una tienda de ropa deportiva.
 Tu trabajo es ayudar al encargado de almacén a registrar una nueva compra a proveedor.
@@ -76,7 +68,6 @@ Si no hay acción de agregar, no incluyas el bloque ACCION_JSON.
 Si el producto no existe en el catálogo, dilo claramente y sugiere alternativas.
 PROMPT;
 
-        // ── 5. Llamar a la API de Gemini via cURL nativo ──────────────────────
         $apiKey  = config('services.gemini.key');
         $url     = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key={$apiKey}";
         $payload = json_encode([
@@ -112,7 +103,6 @@ PROMPT;
         $data  = json_decode($raw, true);
         $texto = $data['candidates'][0]['content']['parts'][0]['text'] ?? '';
 
-        // ── 6. Extraer acción JSON si existe ──────────────────────────────────
         $accion      = null;
         $textoLimpio = $texto;
 

@@ -1,4 +1,3 @@
-{{-- Formulario compartido para crear/editar categoría --}}
 <div class="mb-3">
     <label class="form-label fw-semibold">Nombre <span class="text-danger">*</span></label>
     <input

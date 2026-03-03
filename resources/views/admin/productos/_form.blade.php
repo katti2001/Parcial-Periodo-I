@@ -1,4 +1,3 @@
-{{-- Formulario compartido para crear/editar producto --}}
 <div class="row g-3">
     <div class="col-md-6">
         <label class="form-label fw-semibold">SKU Base <span class="text-danger">*</span></label>
@@ -48,7 +47,6 @@
         </select>
     </div>
 
-    {{-- Imágenes actuales (solo en edición) --}}
     @isset($producto)
         @if($producto->imagenes_productos->count())
         <div class="col-12">
@@ -76,7 +74,6 @@
         @endif
     @endisset
 
-    {{-- Subir nuevas imágenes --}}
     <div class="col-12">
         <label class="form-label fw-semibold">
             {{ isset($producto) ? 'Agregar imágenes' : 'Imágenes del producto' }}
@@ -89,7 +86,6 @@
         @error('imagenes')   <div class="invalid-feedback">{{ $message }}</div>@enderror
         @error('imagenes.*') <div class="invalid-feedback">{{ $message }}</div>@enderror
 
-        {{-- Preview con botón quitar --}}
         <div id="previewImagenes" class="d-flex flex-wrap gap-2 mt-2"></div>
         <small id="contadorImagenes" class="text-muted d-none mt-1"></small>
     </div>
@@ -103,9 +99,7 @@
     </div>
 </div>
 
-{{-- Preview JS de imágenes seleccionadas con botón quitar --}}
-<style>
-.img-preview-wrap {
+<style>.img-preview-wrap {
     position: relative;
     width: 80px;
     height: 80px;
@@ -163,7 +157,6 @@
     const preview  = document.getElementById('previewImagenes');
     const contador = document.getElementById('contadorImagenes');
 
-    // Almacén de archivos seleccionados (independiente del FileList nativo)
     let archivos = [];
 
     function syncInput() {

@@ -15,9 +15,9 @@ class DatabaseSeeder extends Seeder
             UsuariosSeeder::class,
             ProductosSeeder::class,
             ProveedoresSeeder::class,
-            ComprasSeeder::class,   // también inserta detalle_compras y kardex
+            ComprasSeeder::class,
             CuponesSeeder::class,
-            PedidosSeeder::class,   // también inserta detalle_pedidos y kardex ventas
+            PedidosSeeder::class,
             DevolucionesSeeder::class,
         ]);
     }

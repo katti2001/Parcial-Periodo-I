@@ -14,7 +14,6 @@ return new class extends Migration
             $table->unsignedInteger('id_devolucion');
             $table->unsignedInteger('id_detalle_pedido');
 
-            // Debe ser <= cantidad original del detalle_pedido
             $table->unsignedInteger('cantidad_devuelta');
 
             $table->timestamps();

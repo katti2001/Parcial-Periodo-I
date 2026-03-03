@@ -66,8 +66,6 @@ class CuponController extends Controller
     {
         $cupon = Cupon::findOrFail($id);
 
-        // Si hay pedidos que referencian este cupón, solo lo desactivamos
-        // para no violar la FK con la tabla pedidos
         $tienePedidos = Pedido::where('id_cupon', $id)->exists();
 
         if ($tienePedidos) {

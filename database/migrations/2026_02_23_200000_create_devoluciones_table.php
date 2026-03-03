@@ -27,13 +27,10 @@ return new class extends Migration
 
             $table->text('descripcion')->nullable();
 
-            // Se calcula al aprobar
             $table->decimal('monto_reembolso', 10, 2)->nullable();
 
-            // Admin pega manualmente el ID de transacción de PayPal
             $table->string('paypal_refund_id')->nullable();
 
-            // Respuesta/nota que verá el cliente
             $table->text('notas_admin')->nullable();
 
             $table->timestamp('fecha_solicitud')->useCurrent();

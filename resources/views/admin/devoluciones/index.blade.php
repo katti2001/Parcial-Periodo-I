@@ -4,7 +4,6 @@
 
 @section('content')
 
-{{-- Filtros por estado --}}
 <div class="row g-3 mb-4">
     @php
         $filtros = [
@@ -28,7 +27,6 @@
     </div>
     @endforeach
 
-    {{-- Urgentes: solicitadas hace más de 48h --}}
     @if(isset($totales['solicitado']) && $totales['solicitado'] > 0)
     <div class="col-auto ms-auto">
         <span class="text-muted small">
@@ -63,7 +61,6 @@
                         'rechazado'  => 'danger',
                     ][$dev->estado] ?? 'secondary';
 
-                    // Marcar urgencia si lleva más de 48h sin resolución
                     $urgente = $dev->estado === 'solicitado'
                         && $dev->fecha_solicitud->diffInHours(now()) > 48;
                 @endphp

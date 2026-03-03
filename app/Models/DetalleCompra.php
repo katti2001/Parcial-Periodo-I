@@ -1,29 +1,9 @@
 <?php
-/**
- * Created by Reliese Model.
- */
 
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-/**
- * Class DetalleCompra
- *
- * @property int $id_detalle_compra
- * @property int $id_compra
- * @property int $id_producto
- * @property int $id_talla
- * @property int $cantidad_comprada
- * @property int $cantidad_restante
- * @property float $costo_unitario
- *
- * @property Compra $compra
- * @property Producto $producto
- * @property Talla $talla
- *
- * @package App\Models
- */
 class DetalleCompra extends Model
 {
     protected $table = 'detalle_compras';
